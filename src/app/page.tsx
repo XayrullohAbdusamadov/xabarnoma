@@ -667,6 +667,9 @@ export default function Home() {
           </form>
           
           <div className="modal-footer-attribution">
+            <p className="admin-join-notice">
+              📢 Admin bo&apos;lish uchun quyidagi linkdagi kanalga qo&apos;shiling!
+            </p>
             <p>Yaratuvchi: <strong>Xayrulloh Abdusamadov</strong></p>
             <p>
               Telegram kanal:{" "}

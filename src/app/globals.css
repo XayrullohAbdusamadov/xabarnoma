@@ -485,3 +485,17 @@ button, input { font-family: inherit; font-size: inherit; }
   color: #ffffff;
   box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
 }
+
+/* Admin join notice styling */
+.admin-join-notice {
+  color: var(--color-primary);
+  font-weight: 600;
+  font-size: 0.8rem;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  text-align: center;
+  line-height: 1.4;
+}
