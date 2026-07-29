@@ -102,6 +102,14 @@ const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
+const getReplyToTextValue = (m: Message) => {
+  if (m.text) return m.text;
+  if (m.file_type?.startsWith("image/")) return "🖼️ Rasm";
+  if (m.file_name) return `📎 ${m.file_name}`;
+  if (m.file_url) return "📎 Fayl";
+  return null;
+};
+
 export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
   const [username, setUsername] = useState("");
@@ -236,6 +244,17 @@ export default function Home() {
     }
   };
 
+  const scrollToMessage = (msgId: string) => {
+    const element = document.getElementById(`msg-${msgId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      element.classList.add("highlighted-message");
+      setTimeout(() => {
+        element.classList.remove("highlighted-message");
+      }, 2000);
+    }
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!newMessage.trim() && !selectedFile) || isSending || !isSupabaseConfigured) return;
@@ -288,7 +307,7 @@ export default function Home() {
         avatar: avatar,
         text: messageText,
         reply_to_id: replyingTo?.id || null,
-        reply_to_text: replyingTo?.text || null,
+        reply_to_text: replyingTo ? getReplyToTextValue(replyingTo) : null,
         reply_to_sender: replyingTo?.sender_name || null,
         file_url: fileUrl || null,
         file_type: fileType || null,
@@ -410,8 +429,9 @@ export default function Home() {
           ) : (
             messages.map((msg) => {
               const isOutgoing = msg.sender_name === username;
+              const repliedMessage = msg.reply_to_id ? messages.find((m) => m.id === msg.reply_to_id) : null;
               return (
-                <div key={msg.id} className={`message-wrapper ${isOutgoing ? "outgoing" : "incoming"}`}>
+                <div key={msg.id} id={`msg-${msg.id}`} className={`message-wrapper ${isOutgoing ? "outgoing" : "incoming"}`}>
                   {!isOutgoing && (
                     <div className="message-sender">
                       <span className="msg-avatar">{msg.avatar || "👤"}</span>
@@ -423,10 +443,21 @@ export default function Home() {
                     <div className="message-bubble">
                       
                       {/* Render Quoted Reply */}
-                      {msg.reply_to_text && (
-                        <div className="quoted-reply">
+                      {(msg.reply_to_id || msg.reply_to_text) && (
+                        <div 
+                          className="quoted-reply" 
+                          onClick={() => msg.reply_to_id && scrollToMessage(msg.reply_to_id)}
+                          style={{ cursor: msg.reply_to_id ? "pointer" : "default" }}
+                        >
                           <span className="quoted-sender">{msg.reply_to_sender}</span>
-                          <span className="quoted-text">{msg.reply_to_text}</span>
+                          <div className="quoted-content-flex">
+                            {repliedMessage?.file_url && repliedMessage.file_type?.startsWith("image/") && (
+                              <img src={repliedMessage.file_url} alt="replied preview" className="quoted-reply-image" />
+                            )}
+                            <span className="quoted-text">
+                              {repliedMessage ? getReplyToTextValue(repliedMessage) : msg.reply_to_text}
+                            </span>
+                          </div>
                         </div>
                       )}
 
@@ -502,8 +533,15 @@ export default function Home() {
             <div className="replying-context">
               <div className="replying-info">
                 <ReplyIcon />
-                <span className="replying-name">Javob qaytarilmoqda: {replyingTo.sender_name}</span>
-                <span className="replying-text">{replyingTo.text || (replyingTo.file_name ? `📎 ${replyingTo.file_name}` : "")}</span>
+                <div className="replying-content-wrapper">
+                  <span className="replying-name">Javob qaytarilmoqda: {replyingTo.sender_name}</span>
+                  <div className="replying-content-flex">
+                    {replyingTo.file_url && replyingTo.file_type?.startsWith("image/") && (
+                      <img src={replyingTo.file_url} alt="reply preview" className="replying-image-preview" />
+                    )}
+                    <span className="replying-text">{getReplyToTextValue(replyingTo) || ""}</span>
+                  </div>
+                </div>
               </div>
               <button className="close-reply-btn" onClick={() => setReplyingTo(null)} type="button">
                 <CloseIcon />
