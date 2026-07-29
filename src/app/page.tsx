@@ -208,6 +208,7 @@ export default function Home() {
   const [isSending, setIsSending] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showCodeModal, setShowCodeModal] = useState(false);
+  const [showInstallAlert, setShowInstallAlert] = useState(false);
   const [codeSnippet, setCodeSnippet] = useState("");
   const [codeLanguage, setCodeLanguage] = useState("");
   
@@ -696,7 +697,7 @@ export default function Home() {
         setDeferredPrompt(null);
       });
     } else {
-      alert("Avtomatik o'rnatish imkoni topilmadi.\nIltimos, brauzer menyusidan 'O'rnatish' (Install) yoki 'Bosh ekranga qo'shish' (Add to Home screen) ni tanlang.");
+      setShowInstallAlert(true);
     }
   };
 
@@ -1243,6 +1244,31 @@ export default function Home() {
                 Xabarga qo'shish
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showInstallAlert && (
+        <div className="modal-overlay">
+          <div className="modal-content glass-effect" style={{ borderColor: "var(--color-primary)", maxWidth: "400px", textAlign: "center" }}>
+            <div className="modal-logo" style={{ color: "var(--color-primary)", marginBottom: "1rem" }}>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto" }}>
+                <path d="M21 15v4a2 2 0 0 1-2-2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+            </div>
+            <h2 className="modal-title" style={{ color: "var(--color-primary)", marginBottom: "1rem" }}>O'rnatish imkoni yo'q</h2>
+            <p className="modal-subtitle" style={{ marginBottom: "2rem" }}>
+              Avtomatik o'rnatish imkoni topilmadi. Iltimos, brauzer menyusidan <strong>'O'rnatish' (Install)</strong> yoki <strong>'Bosh ekranga qo'shish' (Add to Home screen)</strong> ni tanlang.
+            </p>
+            <button 
+              className="modal-button" 
+              style={{ width: "100%", backgroundColor: "var(--color-primary)" }} 
+              onClick={() => setShowInstallAlert(false)}
+            >
+              Tushundim
+            </button>
           </div>
         </div>
       )}
