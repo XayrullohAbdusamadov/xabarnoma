@@ -253,6 +253,7 @@ export default function Home() {
 
     if (error) {
       console.error("Xabar yuborishda xatolik:", error);
+      alert("Xatolik yuz berdi (bazaga yozishda): " + error.message);
       setNewMessage(messageText);
     } else {
       setReplyingTo(null);
