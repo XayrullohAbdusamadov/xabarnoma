@@ -169,6 +169,11 @@ const isSuperAdmin = (name: string) => {
   return name.trim() === "Hayrulloh.";
 };
 
+const getDisplayName = (name: string) => {
+  if (!name) return "";
+  return name.trim() === "Hayrulloh." ? "Hayrulloh" : name;
+};
+
 const isAdminUser = (name: string, adminList: string[] = []) => {
   if (!name) return false;
   if (isSuperAdmin(name)) return true;
@@ -204,9 +209,12 @@ export default function Home() {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [viewerImage, setViewerImage] = useState<string | null>(null);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingChannelRef = useRef<any>(null);
 
   useEffect(() => {
     setIsMounted(true);
@@ -380,6 +388,36 @@ export default function Home() {
       supabase.removeChannel(channel);
     };
   }, [isMounted, username]);
+
+  useEffect(() => {
+    if (!username || !isSupabaseConfigured) return;
+
+    const channel = supabase.channel('typing_room', {
+      config: { broadcast: { self: false } },
+    });
+
+    channel
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        const { user, isTyping } = payload.payload;
+        if (!user) return;
+        setTypingUsers((prev) => {
+          const current = new Set(prev);
+          if (isTyping) {
+            current.add(user);
+          } else {
+            current.delete(user);
+          }
+          return Array.from(current);
+        });
+      })
+      .subscribe();
+
+    typingChannelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [username]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -600,6 +638,10 @@ export default function Home() {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
     
+    if (typingChannelRef.current) {
+      typingChannelRef.current.send({ type: 'broadcast', event: 'typing', payload: { user: username, isTyping: false } }).catch(() => {});
+    }
+    
     setIsSending(false);
   };
 
@@ -761,13 +803,18 @@ export default function Home() {
           )}
           <div className="user-status">
             <div className="user-avatar-small">{avatar}</div>
-            <span>{username}</span>
+            <span>{getDisplayName(username)}</span>
             {isRegularAdmin(username, adminsList) && <span className="admin-badge" style={{ marginLeft: "8px" }}>👑 ADMIN</span>}
           </div>
         </div>
       </header>
 
       <div className="chat-window glass-effect-subtle">
+        {typingUsers.length > 0 && (
+          <div className="typing-indicator">
+            {typingUsers.map(getDisplayName).join(", ")} yozmoqda...
+          </div>
+        )}
         {!isSupabaseConfigured && (
           <div style={{ padding: "20px" }}>
             <div className="config-banner">
@@ -793,7 +840,7 @@ export default function Home() {
                   {!isOutgoing && (
                     <div className="message-sender">
                       <span className="msg-avatar">{msg.avatar || "👤"}</span>
-                      <span>{msg.sender_name}</span>
+                      <span>{getDisplayName(msg.sender_name)}</span>
                       {isRegAdmin && <span className="admin-badge">👑 ADMIN</span>}
                     </div>
                   )}
@@ -808,7 +855,7 @@ export default function Home() {
                           onClick={() => msg.reply_to_id && scrollToMessage(msg.reply_to_id)}
                           style={{ cursor: msg.reply_to_id ? "pointer" : "default" }}
                         >
-                          <span className="quoted-sender">{msg.reply_to_sender}</span>
+                          <span className="quoted-sender">{getDisplayName(msg.reply_to_sender || "")}</span>
                           <div className="quoted-content-flex">
                             {repliedMessage?.file_url && repliedMessage.file_type?.startsWith("image/") && (
                               <img src={repliedMessage.file_url} alt="replied preview" className="quoted-reply-image" />
@@ -949,7 +996,24 @@ export default function Home() {
               type="text"
               placeholder={isSupabaseConfigured ? (editingMessage ? "Tahrirlash..." : "Xabaringizni yozing...") : "Ulanish kutilmoqda..."}
               value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
+              onChange={(e) => {
+                setNewMessage(e.target.value);
+                if (typingChannelRef.current) {
+                  typingChannelRef.current.send({
+                    type: 'broadcast',
+                    event: 'typing',
+                    payload: { user: username, isTyping: true }
+                  }).catch(() => {});
+                  if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+                  typingTimeoutRef.current = setTimeout(() => {
+                    typingChannelRef.current.send({
+                      type: 'broadcast',
+                      event: 'typing',
+                      payload: { user: username, isTyping: false }
+                    }).catch(() => {});
+                  }, 2000);
+                }
+              }}
               disabled={!isSupabaseConfigured || isSending}
               className="chat-input"
               autoFocus={!!editingMessage}
