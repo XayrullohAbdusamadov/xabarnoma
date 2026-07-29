@@ -189,15 +189,11 @@ const getDisplayName = (name: string) => {
 
 const isAdminUser = (name: string, adminList: string[] = []) => {
   if (!name) return false;
-  if (isSuperAdmin(name)) return true;
-  const normalized = name.trim().toLowerCase();
-  return adminList.some((a) => a.toLowerCase() === normalized);
+  return isSuperAdmin(name);
 };
 
 const isRegularAdmin = (name: string, adminList: string[] = []) => {
-  if (!name || isSuperAdmin(name)) return false;
-  const normalized = name.trim().toLowerCase();
-  return adminList.some((a) => a.toLowerCase() === normalized);
+  return false;
 };
 
 export default function Home() {
@@ -221,7 +217,6 @@ export default function Home() {
   const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
   const [isSelfBlocked, setIsSelfBlocked] = useState(false);
   const [adminsList, setAdminsList] = useState<string[]>([]);
-  const [wantAdmin, setWantAdmin] = useState(false);
   
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
@@ -479,35 +474,7 @@ export default function Home() {
         }
       }
 
-      if (wantAdmin) {
-        if (!isSuperAdmin(trimmedName)) {
-          const clickedTelegram = sessionStorage.getItem("clicked_telegram_join") === "true";
-          if (!clickedTelegram) {
-            alert("Admin bo'la olmadingiz! Iltimos, kanalga qo'shiling.");
-            window.open("https://t.me/HayrullohAdusamadov", "_blank");
-            return;
-          }
 
-          if (adminsList.length >= 2) {
-            const oldestAdmin = adminsList[0];
-            const { error: delError } = await supabase.from("admins").delete().eq("username", oldestAdmin);
-            if (delError) {
-              console.error("Eski adminni o'chirishda xatolik:", delError);
-            } else {
-              setAdminsList((prev) => prev.filter(a => a !== oldestAdmin));
-            }
-          }
-
-          if (isSupabaseConfigured) {
-            const { error } = await supabase.from("admins").insert([{ username: trimmedName }]);
-            if (error && error.code !== "23505") {
-              console.error("Admin qo'shishda xatolik:", error);
-            } else {
-              setAdminsList((prev) => [...prev, trimmedName]);
-            }
-          }
-        }
-      }
 
       setUsername(trimmedName);
       setAvatar(tempAvatar);
@@ -808,28 +775,12 @@ export default function Home() {
               />
             </div>
 
-            <div className="modal-input-group" style={{ flexDirection: "row", alignItems: "center", gap: "10px", marginTop: "4px" }}>
-              <input
-                id="wantAdmin"
-                type="checkbox"
-                checked={wantAdmin}
-                onChange={(e) => setWantAdmin(e.target.checked)}
-                style={{ width: "18px", height: "18px", cursor: "pointer", accentColor: "var(--color-primary)" }}
-              />
-              <label htmlFor="wantAdmin" className="modal-label" style={{ cursor: "pointer", textTransform: "none", fontSize: "0.85rem" }}>
-                Admin bo&apos;lib kirish (Maksimal 2 ta)
-              </label>
-            </div>
-
             <button type="submit" className="modal-button">
               Chatga qo&apos;shilish
             </button>
           </form>
           
           <div className="modal-footer-attribution">
-            <p className="admin-join-notice">
-              📢 Admin bo&apos;lish uchun quyidagi linkdagi kanalga qo&apos;shiling!
-            </p>
             <p>Yaratuvchi: <strong>Xayrulloh Abdusamadov</strong></p>
             <p>
               Telegram kanal:{" "}
