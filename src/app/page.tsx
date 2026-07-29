@@ -337,7 +337,25 @@ export default function Home() {
     }
   };
 
-  if (!isMounted) return null;
+  if (!isMounted) {
+    return (
+      <div className="loading-screen">
+        <div className="loading-container">
+          <div className="loading-logo-wrapper">
+            <XabarnomaLogo />
+            <div className="logo-glow-ring"></div>
+          </div>
+          <h1 className="loading-title">
+            Xabarnoma<span className="logo-accent">.</span>
+          </h1>
+          <p className="loading-subtitle">Xavfsiz va tezkor muloqot tizimi</p>
+          <div className="premium-spinner-bar">
+            <div className="spinner-progress"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!username) {
     return (
@@ -390,6 +408,11 @@ export default function Home() {
               Chatga qo&apos;shilish
             </button>
           </form>
+          
+          <div className="modal-footer-attribution">
+            <p>Yaratuvchi: <strong>Xayrulloh Abdusamadov</strong></p>
+            <p>Telegram kanal: <a href="https://t.me/HayrullohAbdusamadov" target="_blank" rel="noreferrer">@HayrullohAbdusamadov</a></p>
+          </div>
         </div>
       </div>
     );
@@ -595,6 +618,11 @@ export default function Home() {
           </form>
         </div>
       </div>
+      <footer className="app-footer">
+        <span>Yaratuvchi: <strong>Xayrulloh Abdusamadov</strong></span>
+        <span className="footer-separator">•</span>
+        <span>Telegram kanal: <a href="https://t.me/HayrullohAbdusamadov" target="_blank" rel="noreferrer">@HayrullohAbdusamadov</a></span>
+      </footer>
     </div>
   );
 }
