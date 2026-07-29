@@ -70,6 +70,13 @@ const BanIcon = () => (
   </svg>
 );
 
+const CodeIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="16 18 22 12 16 6"></polyline>
+    <polyline points="8 6 2 12 8 18"></polyline>
+  </svg>
+);
+
 interface Message {
   id: string;
   sender_name: string;
@@ -199,6 +206,7 @@ export default function Home() {
   const [isFetchingMessages, setIsFetchingMessages] = useState(false);
   const [newMessage, setNewMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   
   const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
   const [isSelfBlocked, setIsSelfBlocked] = useState(false);
@@ -434,6 +442,19 @@ export default function Home() {
         alert("Siz ushbu chatdan bloklangansiz!");
         setIsSelfBlocked(true);
         return;
+      }
+
+      if (isSupabaseConfigured && !isSuperAdmin(trimmedName)) {
+        const { data: existingUser } = await supabase
+          .from("messages")
+          .select("id")
+          .ilike("sender_name", trimmedName)
+          .limit(1);
+          
+        if (existingUser && existingUser.length > 0) {
+          alert("Iltimos foydalanuvchi Ismingizni o'zgartiring!");
+          return;
+        }
       }
 
       if (wantAdmin) {
@@ -809,11 +830,27 @@ export default function Home() {
               🧹 Tozalash
             </button>
           )}
-          <div className="user-status">
-            <div className="user-avatar-small">{avatar}</div>
-            <span>{getDisplayName(username)}</span>
-            {isRegularAdmin(username, adminsList) && <span className="admin-badge" style={{ marginLeft: "8px" }}>👑 ADMIN</span>}
-          </div>
+          {username && (
+            <div className="header-actions" style={{ display: "flex", alignItems: "center" }}>
+              <div className="user-profile">
+                <span className="user-avatar">{avatar}</span>
+                <span className="user-name">{getDisplayName(username)}</span>
+                {isAdminUser(username, adminsList) && <span className="admin-badge">👑</span>}
+              </div>
+              <button 
+                className="action-btn" 
+                style={{ opacity: 1, transform: "none", color: "#ef4444", backgroundColor: "rgba(239, 68, 68, 0.1)", marginLeft: "12px", width: "36px", height: "36px" }} 
+                onClick={() => setShowLogoutModal(true)} 
+                title="Chiqish"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                  <polyline points="16 17 21 12 16 7"></polyline>
+                  <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -992,8 +1029,19 @@ export default function Home() {
           <form onSubmit={handleSendMessage} className="input-bar">
             {!editingMessage && (
               <>
-                <button type="button" className="attach-btn" onClick={() => fileInputRef.current?.click()} disabled={isSending}>
+                <button type="button" className="attach-btn" onClick={() => fileInputRef.current?.click()} disabled={isSending} title="Fayl yuklash">
                   <PaperclipIcon />
+                </button>
+                <button 
+                  type="button" 
+                  className="attach-btn" 
+                  onClick={() => {
+                    setNewMessage((prev) => prev + (prev ? "\n" : "") + "```\n// Kodni bu yerga yozing\n\n```");
+                  }} 
+                  disabled={isSending} 
+                  title="Kod formatida yozish"
+                >
+                  <CodeIcon />
                 </button>
                 <input 
                   type="file" 
@@ -1064,6 +1112,44 @@ export default function Home() {
           </a>
           
           <img src={viewerImage} alt="Kattalashtirilgan rasm" className="viewer-image-full" onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
+
+      {showLogoutModal && (
+        <div className="modal-overlay">
+          <div className="modal-content glass-effect" style={{ borderColor: "#ef4444" }}>
+            <div className="modal-logo" style={{ color: "#ef4444" }}>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+            </div>
+            <h2 className="modal-title" style={{ color: "#ef4444", marginBottom: "1rem" }}>Chiqasizmi?</h2>
+            <p className="modal-subtitle" style={{ marginBottom: "2rem" }}>Haqiqatan ham ushbu chatdan chiqib ketmoqchimisiz?</p>
+            <div style={{ display: "flex", gap: "1rem", justifyContent: "center", width: "100%" }}>
+              <button 
+                className="modal-button" 
+                style={{ flex: 1, backgroundColor: "#4b5563" }} 
+                onClick={() => setShowLogoutModal(false)}
+              >
+                Yo'q
+              </button>
+              <button 
+                className="modal-button" 
+                style={{ flex: 1, backgroundColor: "#ef4444" }} 
+                onClick={() => {
+                  sessionStorage.removeItem("xabarnoma_username");
+                  sessionStorage.removeItem("xabarnoma_avatar");
+                  setUsername("");
+                  setAvatar("");
+                  setShowLogoutModal(false);
+                }}
+              >
+                Ha
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
