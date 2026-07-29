@@ -196,6 +196,7 @@ export default function Home() {
   const [tempAvatar, setTempAvatar] = useState(avatarOptions[0]);
   
   const [messages, setMessages] = useState<Message[]>([]);
+  const [isFetchingMessages, setIsFetchingMessages] = useState(false);
   const [newMessage, setNewMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   
@@ -344,6 +345,7 @@ export default function Home() {
     if (!isMounted || !username || !isSupabaseConfigured) return;
 
     const fetchMessages = async () => {
+      setIsFetchingMessages(true);
       const { data, error } = await supabase
         .from("messages")
         .select("*")
@@ -355,6 +357,7 @@ export default function Home() {
       } else if (data) {
         setMessages(data);
       }
+      setIsFetchingMessages(false);
     };
 
     fetchMessages();
@@ -824,7 +827,12 @@ export default function Home() {
         )}
 
         <div className="messages-container">
-          {messages.length === 0 ? (
+          {isFetchingMessages ? (
+            <div className="messages-empty-state">
+              <div className="spinner-small" style={{ width: 40, height: 40, borderWidth: 4, margin: "0 auto 16px" }}></div>
+              <p>Xabarlar yuklanmoqda...</p>
+            </div>
+          ) : messages.length === 0 ? (
             <div className="messages-empty-state">
               <HabarnomaLogo />
               <h3>Hozircha xabarlar yo&apos;q</h3>
