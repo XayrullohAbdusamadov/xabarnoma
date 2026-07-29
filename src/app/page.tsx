@@ -257,7 +257,7 @@ export default function Home() {
           }
 
           try {
-            const { data: adminData } = await supabase.from("admins").select("username");
+            const { data: adminData } = await supabase.from("admins").select("username").order("created_at", { ascending: true });
             if (adminData) {
               setAdminsList(adminData.map((a: any) => a.username));
             }
@@ -315,7 +315,7 @@ export default function Home() {
               "postgres_changes",
               { event: "*", schema: "public", table: "admins" },
               () => {
-                supabase.from("admins").select("username").then(
+                supabase.from("admins").select("username").order("created_at", { ascending: true }).then(
                   ({ data }) => {
                     if (data) setAdminsList(data.map((a: any) => a.username));
                   },
@@ -446,8 +446,13 @@ export default function Home() {
           }
 
           if (adminsList.length >= 2) {
-            alert("Kechirasiz, adminlar soni maksimal (2 ta) ga yetgan!");
-            return;
+            const oldestAdmin = adminsList[0];
+            const { error: delError } = await supabase.from("admins").delete().eq("username", oldestAdmin);
+            if (delError) {
+              console.error("Eski adminni o'chirishda xatolik:", delError);
+            } else {
+              setAdminsList((prev) => prev.filter(a => a !== oldestAdmin));
+            }
           }
 
           if (isSupabaseConfigured) {
@@ -1048,6 +1053,16 @@ export default function Home() {
           <button className="viewer-close-btn" onClick={() => setViewerImage(null)}>
             <CloseIcon />
           </button>
+          
+          <a 
+            href={viewerImage} 
+            download="Habarnoma_rasm" 
+            className="viewer-download-btn"
+            onClick={(e) => e.stopPropagation()}
+          >
+            Yuklab olish
+          </a>
+          
           <img src={viewerImage} alt="Kattalashtirilgan rasm" className="viewer-image-full" onClick={(e) => e.stopPropagation()} />
         </div>
       )}

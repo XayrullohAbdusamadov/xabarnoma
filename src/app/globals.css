@@ -606,6 +606,23 @@ button, input { font-family: inherit; font-size: inherit; }
   transform: scale(1.1);
 }
 
+.viewer-download-btn {
+  position: absolute;
+  bottom: 40px;
+  background: var(--color-primary);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  z-index: 10000;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+  transition: opacity 0.2s;
+}
+.viewer-download-btn:hover {
+  opacity: 0.9;
+}
+
 /* Typing Indicator */
 .typing-indicator {
   position: sticky;
