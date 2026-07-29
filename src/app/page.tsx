@@ -207,6 +207,9 @@ export default function Home() {
   const [newMessage, setNewMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showCodeModal, setShowCodeModal] = useState(false);
+  const [codeSnippet, setCodeSnippet] = useState("");
+  const [codeLanguage, setCodeLanguage] = useState("");
   
   const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
   const [isSelfBlocked, setIsSelfBlocked] = useState(false);
@@ -1035,9 +1038,7 @@ export default function Home() {
                 <button 
                   type="button" 
                   className="attach-btn" 
-                  onClick={() => {
-                    setNewMessage((prev) => prev + (prev ? "\n" : "") + "```\n// Kodni bu yerga yozing\n\n```");
-                  }} 
+                  onClick={() => setShowCodeModal(true)} 
                   disabled={isSending} 
                   title="Kod formatida yozish"
                 >
@@ -1147,6 +1148,64 @@ export default function Home() {
                 }}
               >
                 Ha
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCodeModal && (
+        <div className="modal-overlay">
+          <div className="modal-content glass-effect" style={{ maxWidth: "600px", borderColor: "var(--color-primary)" }}>
+            <h2 className="modal-title" style={{ color: "var(--color-primary)", marginBottom: "1rem" }}>Kod Yozish</h2>
+            <div className="modal-form">
+              <div className="modal-input-group">
+                <label className="modal-label">Dasturlash tili (ixtiyoriy)</label>
+                <input 
+                  type="text" 
+                  className="modal-input" 
+                  placeholder="masalan: javascript, python, html..." 
+                  value={codeLanguage} 
+                  onChange={(e) => setCodeLanguage(e.target.value)} 
+                />
+              </div>
+              <div className="modal-input-group">
+                <label className="modal-label">Kodni kiriting</label>
+                <textarea 
+                  className="modal-input" 
+                  style={{ minHeight: "200px", fontFamily: "monospace", resize: "vertical" }}
+                  placeholder="Kodni shu yerga joylashtiring..."
+                  value={codeSnippet}
+                  onChange={(e) => setCodeSnippet(e.target.value)}
+                />
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: "1rem", justifyContent: "flex-end", width: "100%", marginTop: "1.5rem" }}>
+              <button 
+                className="modal-button" 
+                style={{ flex: 1, backgroundColor: "#4b5563" }} 
+                onClick={() => {
+                  setShowCodeModal(false);
+                  setCodeSnippet("");
+                  setCodeLanguage("");
+                }}
+              >
+                Bekor qilish
+              </button>
+              <button 
+                className="modal-button" 
+                style={{ flex: 1 }} 
+                onClick={() => {
+                  if (codeSnippet.trim()) {
+                    const formattedCode = `\`\`\`${codeLanguage.trim()}\n${codeSnippet}\n\`\`\``;
+                    setNewMessage((prev) => prev + (prev ? "\n" : "") + formattedCode);
+                  }
+                  setShowCodeModal(false);
+                  setCodeSnippet("");
+                  setCodeLanguage("");
+                }}
+              >
+                Xabarga qo'shish
               </button>
             </div>
           </div>
