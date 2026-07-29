@@ -162,109 +162,125 @@ export default function Home() {
 
   useEffect(() => {
     setIsMounted(true);
-    const storedName = sessionStorage.getItem("xabarnoma_username");
-    const storedAvatar = sessionStorage.getItem("xabarnoma_avatar");
-    if (storedName && storedAvatar) {
-      setUsername(storedName);
-      setAvatar(storedAvatar);
-    }
-    
-    if (isSupabaseConfigured) {
-      const initData = async () => {
-        try {
-          const { data: blockedData } = await supabase.from("blocked_users").select("username");
-          if (blockedData) {
-            const names = blockedData.map((b: any) => b.username.toLowerCase());
-            setBlockedUsers(names);
-            if (storedName && names.includes(storedName.trim().toLowerCase())) {
-              setIsSelfBlocked(true);
-            }
-          }
-        } catch (e) {
-          console.error("blocked_users error:", e);
-        }
 
-        try {
-          const { data: adminData } = await supabase.from("admins").select("username");
-          if (adminData) {
-            setAdminsList(adminData.map((a: any) => a.username));
-          }
-        } catch (e) {
-          console.error("admins error:", e);
-        }
-      };
-      initData();
-
-      // Listen to blocked users realtime
-      const blockedChannel = supabase
-        .channel("blocked-users-changes")
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "blocked_users" },
-          (payload) => {
-            if (payload.eventType === "INSERT") {
-              const newBlocked = (payload.new as any).username;
-              setBlockedUsers((prev) => [...prev, newBlocked.toLowerCase()]);
-              
-              const currentStoredName = sessionStorage.getItem("xabarnoma_username") || username;
-              if (currentStoredName && currentStoredName.trim().toLowerCase() === newBlocked.trim().toLowerCase()) {
-                setIsSelfBlocked(true);
-                alert("Siz admin tomonidan bloklandingiz!");
-                sessionStorage.removeItem("xabarnoma_username");
-                sessionStorage.removeItem("xabarnoma_avatar");
-                setUsername("");
-                setAvatar("");
-              }
-            } else if (payload.eventType === "DELETE") {
-              const blockedName = (payload.old as any).username;
-              if (blockedName) {
-                setBlockedUsers((prev) => prev.filter((name) => name !== blockedName.toLowerCase()));
-                const currentStoredName = sessionStorage.getItem("xabarnoma_username") || username;
-                if (currentStoredName && currentStoredName.trim().toLowerCase() === blockedName.trim().toLowerCase()) {
-                  setIsSelfBlocked(false);
-                }
-              } else {
-                const refetch = async () => {
-                  const { data } = await supabase.from("blocked_users").select("username");
-                  if (data) {
-                    const names = data.map((b: any) => b.username.toLowerCase());
-                    setBlockedUsers(names);
-                    const currentStoredName = sessionStorage.getItem("xabarnoma_username") || username;
-                    if (currentStoredName && !names.includes(currentStoredName.trim().toLowerCase())) {
-                      setIsSelfBlocked(false);
-                    }
-                  }
-                };
-                refetch();
-              }
-            }
-          }
-        )
-        .subscribe();
-
-      // Listen to admins realtime
-      const adminsChannel = supabase
-        .channel("admins-changes")
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "admins" },
-          () => {
-            supabase.from("admins").select("username").then(({ data }) => {
-              if (data) setAdminsList(data.map((a: any) => a.username));
-            });
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(blockedChannel);
-        supabase.removeChannel(adminsChannel);
-      };
-    }
-
+    // Guaranteed 3-second timer that CANNOT be blocked by any errors below
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 3000);
+
+    try {
+      const storedName = typeof window !== "undefined" ? sessionStorage.getItem("xabarnoma_username") : null;
+      const storedAvatar = typeof window !== "undefined" ? sessionStorage.getItem("xabarnoma_avatar") : null;
+      if (storedName && storedAvatar) {
+        setUsername(storedName);
+        setAvatar(storedAvatar);
+      }
+    } catch (err) {
+      console.error("SessionStorage error:", err);
+    }
+    
+    if (isSupabaseConfigured) {
+      let blockedChannel: any = null;
+      let adminsChannel: any = null;
+
+      try {
+        const initData = async () => {
+          try {
+            const { data: blockedData } = await supabase.from("blocked_users").select("username");
+            if (blockedData) {
+              const names = blockedData.map((b: any) => b.username.toLowerCase());
+              setBlockedUsers(names);
+              const currentStoredName = typeof window !== "undefined" ? sessionStorage.getItem("xabarnoma_username") : null;
+              if (currentStoredName && names.includes(currentStoredName.trim().toLowerCase())) {
+                setIsSelfBlocked(true);
+              }
+            }
+          } catch (e) {
+            console.error("blocked_users error:", e);
+          }
+
+          try {
+            const { data: adminData } = await supabase.from("admins").select("username");
+            if (adminData) {
+              setAdminsList(adminData.map((a: any) => a.username));
+            }
+          } catch (e) {
+            console.error("admins error:", e);
+          }
+        };
+        initData();
+
+        try {
+          blockedChannel = supabase
+            .channel("blocked-users-changes")
+            .on(
+              "postgres_changes",
+              { event: "*", schema: "public", table: "blocked_users" },
+              (payload) => {
+                try {
+                  if (payload.eventType === "INSERT") {
+                    const newBlocked = (payload.new as any).username;
+                    setBlockedUsers((prev) => [...prev, newBlocked.toLowerCase()]);
+                    
+                    const currentStoredName = typeof window !== "undefined" ? sessionStorage.getItem("xabarnoma_username") : null;
+                    if (currentStoredName && currentStoredName.trim().toLowerCase() === newBlocked.trim().toLowerCase()) {
+                      setIsSelfBlocked(true);
+                      alert("Siz admin tomonidan bloklandingiz!");
+                      sessionStorage.removeItem("xabarnoma_username");
+                      sessionStorage.removeItem("xabarnoma_avatar");
+                      setUsername("");
+                      setAvatar("");
+                    }
+                  } else if (payload.eventType === "DELETE") {
+                    const blockedName = (payload.old as any).username;
+                    if (blockedName) {
+                      setBlockedUsers((prev) => prev.filter((name) => name !== blockedName.toLowerCase()));
+                      const currentStoredName = typeof window !== "undefined" ? sessionStorage.getItem("xabarnoma_username") : null;
+                      if (currentStoredName && currentStoredName.trim().toLowerCase() === blockedName.trim().toLowerCase()) {
+                        setIsSelfBlocked(false);
+                      }
+                    }
+                  }
+                } catch (e) {
+                  console.error("Realtime blocked error:", e);
+                }
+              }
+            )
+            .subscribe();
+        } catch (e) {
+          console.error("blockedChannel subscribe error:", e);
+        }
+
+        try {
+          adminsChannel = supabase
+            .channel("admins-changes")
+            .on(
+              "postgres_changes",
+              { event: "*", schema: "public", table: "admins" },
+              () => {
+                supabase.from("admins").select("username").then(
+                  ({ data }) => {
+                    if (data) setAdminsList(data.map((a: any) => a.username));
+                  },
+                  () => {}
+                );
+              }
+            )
+            .subscribe();
+        } catch (e) {
+          console.error("adminsChannel subscribe error:", e);
+        }
+      } catch (err) {
+        console.error("Supabase config block error:", err);
+      }
+
+      return () => {
+        clearTimeout(timer);
+        if (blockedChannel) supabase.removeChannel(blockedChannel);
+        if (adminsChannel) supabase.removeChannel(adminsChannel);
+      };
+    }
+
     return () => clearTimeout(timer);
   }, []);
 
