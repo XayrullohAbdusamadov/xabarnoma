@@ -112,6 +112,7 @@ const getReplyToTextValue = (m: Message) => {
 
 export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [username, setUsername] = useState("");
   const [avatar, setAvatar] = useState("");
   const [tempName, setTempName] = useState("");
@@ -137,6 +138,10 @@ export default function Home() {
       setUsername(storedName);
       setAvatar(storedAvatar);
     }
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 4200);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -337,7 +342,7 @@ export default function Home() {
     }
   };
 
-  if (!isMounted) {
+  if (!isMounted || isLoading) {
     return (
       <div className="loading-screen">
         <div className="loading-container">
