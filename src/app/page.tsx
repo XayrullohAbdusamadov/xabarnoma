@@ -52,6 +52,15 @@ const CheckIcon = () => (
   </svg>
 );
 
+const TrashIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <line x1="10" y1="11" x2="10" y2="17" />
+    <line x1="14" y1="11" x2="14" y2="17" />
+  </svg>
+);
+
 interface Message {
   id: string;
   sender_name: string;
@@ -81,6 +90,15 @@ const renderTextWithLinks = (text: string) => {
       );
     }
     return part;
+  });
+};
+
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
   });
 };
 
@@ -132,7 +150,7 @@ export default function Home() {
 
     fetchMessages();
 
-    // Listen to ALL events (INSERT, UPDATE)
+    // Listen to ALL events (INSERT, UPDATE, DELETE)
     const channel = supabase
       .channel("schema-db-changes")
       .on(
@@ -150,6 +168,8 @@ export default function Home() {
             setMessages((prev) =>
               prev.map((msg) => (msg.id === updatedMsg.id ? updatedMsg : msg))
             );
+          } else if (payload.eventType === "DELETE") {
+            setMessages((prev) => prev.filter((msg) => msg.id !== payload.old.id));
           }
         }
       )
@@ -177,7 +197,13 @@ export default function Home() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setSelectedFile(e.target.files[0]);
+      const file = e.target.files[0];
+      if (!file.type.startsWith("image/")) {
+        alert("Faqat rasmlarni yuklash mumkin!");
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+      setSelectedFile(file);
     }
   };
 
@@ -194,6 +220,20 @@ export default function Home() {
     setEditingMessage(msg);
     setReplyingTo(null); // Clear reply if editing
     setNewMessage(msg.text);
+  };
+
+  const handleDeleteMessage = async (msgId: string) => {
+    if (!confirm("Haqiqatan ham ushbu xabarni o'chirib tashlamoqchimisiz?")) return;
+    
+    const { error } = await supabase
+      .from("messages")
+      .delete()
+      .eq("id", msgId);
+      
+    if (error) {
+      console.error("Xabarni o'chirishda xatolik:", error);
+      alert("Xabarni o'chirishda xatolik yuz berdi: " + error.message);
+    }
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -229,26 +269,16 @@ export default function Home() {
     let fileName = "";
 
     if (selectedFile) {
-      const uniqueName = `${Date.now()}_${selectedFile.name.replace(/\s+/g, '_')}`;
-      const { data, error } = await supabase.storage
-        .from("chat_uploads")
-        .upload(uniqueName, selectedFile);
-        
-      if (error) {
-        console.error("Fayl yuklashda xatolik:", error);
-        alert("Fayl yuklashda xatolik yuz berdi.");
+      try {
+        fileUrl = await fileToBase64(selectedFile);
+        fileType = selectedFile.type;
+        fileName = selectedFile.name;
+      } catch (err) {
+        console.error("Faylni Base64 formatiga o'tkazishda xatolik:", err);
+        alert("Rasmni o'qishda xatolik yuz berdi.");
         setIsSending(false);
         setNewMessage(messageText);
         return;
-      }
-
-      if (data) {
-        const { data: publicUrlData } = supabase.storage
-          .from("chat_uploads")
-          .getPublicUrl(uniqueName);
-        fileUrl = publicUrlData.publicUrl;
-        fileType = selectedFile.type;
-        fileName = selectedFile.name;
       }
     }
 
@@ -434,9 +464,14 @@ export default function Home() {
                           <ReplyIcon />
                         </button>
                         {isOutgoing && (
-                          <button className="action-btn" onClick={() => handleEditClick(msg)} title="Tahrirlash">
-                            <EditIcon />
-                          </button>
+                          <>
+                            <button className="action-btn" onClick={() => handleEditClick(msg)} title="Tahrirlash">
+                              <EditIcon />
+                            </button>
+                            <button className="action-btn delete-btn" onClick={() => handleDeleteMessage(msg.id)} title="O'chirish">
+                              <TrashIcon />
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -496,6 +531,7 @@ export default function Home() {
                   type="file" 
                   ref={fileInputRef} 
                   onChange={handleFileChange} 
+                  accept="image/*"
                   style={{ display: "none" }} 
                 />
               </>
