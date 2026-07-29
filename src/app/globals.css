@@ -134,6 +134,17 @@ button, input { font-family: inherit; font-size: inherit; }
   border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) 0;
   border: 1px solid var(--color-border);
 }
+.message-text-content { line-height: 1.4; word-wrap: break-word; white-space: pre-wrap; font-size: 0.95rem; }
+
+.message-link {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.message-link:hover {
+  text-decoration: none;
+  filter: brightness(1.2);
+}
 
 /* Meta row (Time and Action btns) */
 .message-meta-row {

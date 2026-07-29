@@ -69,6 +69,21 @@ interface Message {
 
 const avatarOptions = ["👨‍💻", "👩‍💻", "🦊", "🐼", "🤖", "👻", "🐱", "🦖"];
 
+const renderTextWithLinks = (text: string) => {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, index) => {
+    if (part.match(urlRegex)) {
+      return (
+        <a key={index} href={part} target="_blank" rel="noopener noreferrer" className="message-link">
+          {part}
+        </a>
+      );
+    }
+    return part;
+  });
+};
+
 export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
   const [username, setUsername] = useState("");
@@ -400,7 +415,7 @@ export default function Home() {
                         </div>
                       )}
 
-                      {msg.text && <p className="message-text-content">{msg.text}</p>}
+                      {msg.text && <p className="message-text-content">{renderTextWithLinks(msg.text)}</p>}
                     </div>
                     
                     <div className="message-meta-row">
