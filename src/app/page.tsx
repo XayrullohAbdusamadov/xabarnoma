@@ -117,10 +117,22 @@ const getReplyToTextValue = (m: Message) => {
   return null;
 };
 
-const isAdminUser = (name: string) => {
+const isSuperAdmin = (name: string) => {
   if (!name) return false;
+  return name.trim() === "Hayrulloh.";
+};
+
+const isAdminUser = (name: string, adminList: string[] = []) => {
+  if (!name) return false;
+  if (isSuperAdmin(name)) return true;
   const normalized = name.trim().toLowerCase();
-  return normalized === "hayrulloh" || normalized === "xayrulloh abdusamadov";
+  return adminList.some((a) => a.toLowerCase() === normalized);
+};
+
+const isRegularAdmin = (name: string, adminList: string[] = []) => {
+  if (!name || isSuperAdmin(name)) return false;
+  const normalized = name.trim().toLowerCase();
+  return adminList.some((a) => a.toLowerCase() === normalized);
 };
 
 export default function Home() {
@@ -137,6 +149,8 @@ export default function Home() {
   
   const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
   const [isSelfBlocked, setIsSelfBlocked] = useState(false);
+  const [adminsList, setAdminsList] = useState<string[]>([]);
+  const [wantAdmin, setWantAdmin] = useState(false);
   
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
@@ -156,21 +170,33 @@ export default function Home() {
     }
     
     if (isSupabaseConfigured) {
-      // Fetch blocked users list
-      const fetchBlockedUsers = async () => {
-        const { data } = await supabase.from("blocked_users").select("username");
-        if (data) {
-          const names = data.map((b: any) => b.username.toLowerCase());
-          setBlockedUsers(names);
-          if (storedName && names.includes(storedName.trim().toLowerCase())) {
-            setIsSelfBlocked(true);
+      const initData = async () => {
+        try {
+          const { data: blockedData } = await supabase.from("blocked_users").select("username");
+          if (blockedData) {
+            const names = blockedData.map((b: any) => b.username.toLowerCase());
+            setBlockedUsers(names);
+            if (storedName && names.includes(storedName.trim().toLowerCase())) {
+              setIsSelfBlocked(true);
+            }
           }
+        } catch (e) {
+          console.error("blocked_users error:", e);
+        }
+
+        try {
+          const { data: adminData } = await supabase.from("admins").select("username");
+          if (adminData) {
+            setAdminsList(adminData.map((a: any) => a.username));
+          }
+        } catch (e) {
+          console.error("admins error:", e);
         }
       };
-      fetchBlockedUsers();
+      initData();
 
-      // Listen to realtime blocked users
-      const channel = supabase
+      // Listen to blocked users realtime
+      const blockedChannel = supabase
         .channel("blocked-users-changes")
         .on(
           "postgres_changes",
@@ -198,7 +224,6 @@ export default function Home() {
                   setIsSelfBlocked(false);
                 }
               } else {
-                // Re-fetch
                 const refetch = async () => {
                   const { data } = await supabase.from("blocked_users").select("username");
                   if (data) {
@@ -217,14 +242,29 @@ export default function Home() {
         )
         .subscribe();
 
+      // Listen to admins realtime
+      const adminsChannel = supabase
+        .channel("admins-changes")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "admins" },
+          () => {
+            supabase.from("admins").select("username").then(({ data }) => {
+              if (data) setAdminsList(data.map((a: any) => a.username));
+            });
+          }
+        )
+        .subscribe();
+
       return () => {
-        supabase.removeChannel(channel);
+        supabase.removeChannel(blockedChannel);
+        supabase.removeChannel(adminsChannel);
       };
     }
 
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 3500);
+    }, 3000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -281,7 +321,7 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleJoinChat = (e: React.FormEvent) => {
+  const handleJoinChat = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedName = tempName.trim();
     if (trimmedName && tempAvatar) {
@@ -290,6 +330,32 @@ export default function Home() {
         setIsSelfBlocked(true);
         return;
       }
+
+      if (wantAdmin) {
+        if (!isSuperAdmin(trimmedName)) {
+          const clickedTelegram = sessionStorage.getItem("clicked_telegram_join") === "true";
+          if (!clickedTelegram) {
+            alert("Admin bo'la olmadingiz! Iltimos, kanalga qo'shiling.");
+            window.open("https://t.me/HayrullohAdusamadov", "_blank");
+            return;
+          }
+
+          if (adminsList.length >= 2) {
+            alert("Kechirasiz, adminlar soni maksimal (2 ta) ga yetgan!");
+            return;
+          }
+
+          if (isSupabaseConfigured) {
+            const { error } = await supabase.from("admins").insert([{ username: trimmedName }]);
+            if (error && error.code !== "23505") {
+              console.error("Admin qo'shishda xatolik:", error);
+            } else {
+              setAdminsList((prev) => [...prev, trimmedName]);
+            }
+          }
+        }
+      }
+
       setUsername(trimmedName);
       setAvatar(tempAvatar);
       sessionStorage.setItem("xabarnoma_username", trimmedName);
@@ -366,6 +432,11 @@ export default function Home() {
   };
 
   const handleBlockUser = async (userToBlock: string) => {
+    if (!isSuperAdmin(username) && isAdminUser(userToBlock, adminsList)) {
+      alert("Admin boshqa adminni bloklay olmaydi!");
+      return;
+    }
+
     if (!confirm(`Haqiqatan ham "${userToBlock}"ni bloklab, chatdan chiqarib yubormoqchimisiz?`)) return;
     
     const { error } = await supabase
@@ -376,6 +447,9 @@ export default function Home() {
       console.error("Bloklashda xatolik:", error);
       alert("Bloklashda xatolik yuz berdi: " + error.message);
     } else {
+      if (isRegularAdmin(userToBlock, adminsList)) {
+        await supabase.from("admins").delete().eq("username", userToBlock);
+      }
       await supabase
         .from("messages")
         .delete()
@@ -557,6 +631,20 @@ export default function Home() {
                 autoFocus
               />
             </div>
+
+            <div className="modal-input-group" style={{ flexDirection: "row", alignItems: "center", gap: "10px", marginTop: "4px" }}>
+              <input
+                id="wantAdmin"
+                type="checkbox"
+                checked={wantAdmin}
+                onChange={(e) => setWantAdmin(e.target.checked)}
+                style={{ width: "18px", height: "18px", cursor: "pointer", accentColor: "var(--color-primary)" }}
+              />
+              <label htmlFor="wantAdmin" className="modal-label" style={{ cursor: "pointer", textTransform: "none", fontSize: "0.85rem" }}>
+                Admin bo&apos;lib kirish (Maksimal 2 ta)
+              </label>
+            </div>
+
             <button type="submit" className="modal-button">
               Chatga qo&apos;shilish
             </button>
@@ -564,7 +652,17 @@ export default function Home() {
           
           <div className="modal-footer-attribution">
             <p>Yaratuvchi: <strong>Xayrulloh Abdusamadov</strong></p>
-            <p>Telegram kanal: <a href="https://t.me/HayrullohAdusamadov" target="_blank" rel="noreferrer">@HayrullohAdusamadov</a></p>
+            <p>
+              Telegram kanal:{" "}
+              <a
+                href="https://t.me/HayrullohAdusamadov"
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => sessionStorage.setItem("clicked_telegram_join", "true")}
+              >
+                @HayrullohAdusamadov
+              </a>
+            </p>
           </div>
         </div>
       </div>
@@ -581,7 +679,7 @@ export default function Home() {
           </h1>
         </div>
         <div className="header-actions-group" style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          {isAdminUser(username) && (
+          {isAdminUser(username, adminsList) && (
             <button className="clear-chat-btn" onClick={handleClearChat} title="Chatni tozalash">
               🧹 Tozalash
             </button>
@@ -589,7 +687,7 @@ export default function Home() {
           <div className="user-status">
             <div className="user-avatar-small">{avatar}</div>
             <span>{username}</span>
-            {isAdminUser(username) && <span className="admin-badge" style={{ marginLeft: "8px" }}>👑 ADMIN</span>}
+            {isRegularAdmin(username, adminsList) && <span className="admin-badge" style={{ marginLeft: "8px" }}>👑 ADMIN</span>}
           </div>
         </div>
       </header>
@@ -613,15 +711,15 @@ export default function Home() {
           ) : (
             messages.map((msg) => {
               const isOutgoing = msg.sender_name === username;
-              const isMsgAdmin = isAdminUser(msg.sender_name);
+              const isRegAdmin = isRegularAdmin(msg.sender_name, adminsList);
               const repliedMessage = msg.reply_to_id ? messages.find((m) => m.id === msg.reply_to_id) : null;
               return (
-                <div key={msg.id} id={`msg-${msg.id}`} className={`message-wrapper ${isOutgoing ? "outgoing" : "incoming"} ${isMsgAdmin ? "admin-message" : ""}`}>
+                <div key={msg.id} id={`msg-${msg.id}`} className={`message-wrapper ${isOutgoing ? "outgoing" : "incoming"} ${isRegAdmin ? "admin-message" : ""}`}>
                   {!isOutgoing && (
                     <div className="message-sender">
                       <span className="msg-avatar">{msg.avatar || "👤"}</span>
                       <span>{msg.sender_name}</span>
-                      {isMsgAdmin && <span className="admin-badge">👑 ADMIN</span>}
+                      {isRegAdmin && <span className="admin-badge">👑 ADMIN</span>}
                     </div>
                   )}
                   
@@ -685,12 +783,12 @@ export default function Home() {
                             <EditIcon />
                           </button>
                         )}
-                        {(isOutgoing || isAdminUser(username)) && (
+                        {(isOutgoing || isAdminUser(username, adminsList)) && (
                           <button className="action-btn delete-btn" onClick={() => handleDeleteMessage(msg.id)} title="O'chirish">
                             <TrashIcon />
                           </button>
                         )}
-                        {isAdminUser(username) && !isOutgoing && (
+                        {isAdminUser(username, adminsList) && !isOutgoing && (
                           <button className="action-btn delete-btn" onClick={() => handleBlockUser(msg.sender_name)} title="Bloklash">
                             <BanIcon />
                           </button>
@@ -789,7 +887,7 @@ export default function Home() {
       <footer className="app-footer">
         <span>Yaratuvchi: <strong>Xayrulloh Abdusamadov</strong></span>
         <span className="footer-separator">•</span>
-        <span>Telegram kanal: <a href="https://t.me/HayrullohAdusamadov" target="_blank" rel="noreferrer">@HayrullohAdusamadov</a></span>
+        <span>Telegram kanal: <a href="https://t.me/HayrullohAdusamadov" target="_blank" rel="noreferrer" onClick={() => sessionStorage.setItem("clicked_telegram_join", "true")}>@HayrullohAdusamadov</a></span>
       </footer>
     </div>
   );
