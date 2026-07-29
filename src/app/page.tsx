@@ -92,7 +92,13 @@ interface Message {
   is_edited?: boolean;
 }
 
-const avatarOptions = ["👨‍💻", "👩‍💻", "🦊", "🐼", "🤖", "👻", "🐱", "🦖"];
+const avatarOptions = [
+  "👨‍💻", "👩‍💻", "🦊", "🐼", "🤖", "👻", "🐱", "🦖",
+  "🦁", "🐯", "🐨", "🐙", "🦄", "🐉", "👽", "👾",
+  "🥷", "🧙‍♂️", "🧙‍♀️", "🧑‍🚀", "🤠", "🤡", "👹", "👺",
+  "🐻", "🐺", "🐸", "🐹", "🐷", "🐒", "🐔", "🐧",
+  "🦅", "🦉", "🦋", "🐝", "🐠", "🐢", "🦈", "🦌"
+];
 
 const CodeBlock = ({ code, language }: { code: string; language: string }) => {
   const [copied, setCopied] = useState(false);
