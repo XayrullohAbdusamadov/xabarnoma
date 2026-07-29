@@ -1043,7 +1043,7 @@ export default function Home() {
         </div>
       </div>
       <footer className="app-footer">
-        <span>Yaratuvchi: <strong>Xayrulloh Abdusamadov</strong></span>
+        <span>Yaratuvchi: <strong>Hayrulloh Abdusamadov</strong></span>
         <span className="footer-separator">•</span>
         <span>Telegram kanal: <a href="https://t.me/HayrullohAdusamadov" target="_blank" rel="noreferrer" onClick={() => sessionStorage.setItem("clicked_telegram_join", "true")}>@HayrullohAdusamadov</a></span>
       </footer>
