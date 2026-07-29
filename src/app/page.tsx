@@ -250,14 +250,14 @@ export default function Home() {
     }, 3000);
 
     try {
-      const storedName = typeof window !== "undefined" ? sessionStorage.getItem("xabarnoma_username") : null;
-      const storedAvatar = typeof window !== "undefined" ? sessionStorage.getItem("xabarnoma_avatar") : null;
+      const storedName = typeof window !== "undefined" ? localStorage.getItem("xabarnoma_username") : null;
+      const storedAvatar = typeof window !== "undefined" ? localStorage.getItem("xabarnoma_avatar") : null;
       if (storedName && storedAvatar) {
         setUsername(storedName);
         setAvatar(storedAvatar);
       }
     } catch (err) {
-      console.error("SessionStorage error:", err);
+      console.error("LocalStorage error:", err);
     }
     
     if (isSupabaseConfigured) {
@@ -505,8 +505,8 @@ export default function Home() {
 
       setUsername(trimmedName);
       setAvatar(tempAvatar);
-      sessionStorage.setItem("xabarnoma_username", trimmedName);
-      sessionStorage.setItem("xabarnoma_avatar", tempAvatar);
+      localStorage.setItem("xabarnoma_username", trimmedName);
+      localStorage.setItem("xabarnoma_avatar", tempAvatar);
     }
   };
 
@@ -1176,8 +1176,8 @@ export default function Home() {
                 className="modal-button" 
                 style={{ flex: 1, backgroundColor: "#ef4444" }} 
                 onClick={() => {
-                  sessionStorage.removeItem("xabarnoma_username");
-                  sessionStorage.removeItem("xabarnoma_avatar");
+                  localStorage.removeItem("xabarnoma_username");
+                  localStorage.removeItem("xabarnoma_avatar");
                   setUsername("");
                   setAvatar("");
                   setShowLogoutModal(false);
