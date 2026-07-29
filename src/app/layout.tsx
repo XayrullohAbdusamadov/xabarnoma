@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Habarnoma - Realtime Chat",
   description: "Next.js va Supabase asosida yaratilgan zamonaviy chat ilovasi.",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
