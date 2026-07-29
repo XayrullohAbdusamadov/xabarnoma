@@ -2,9 +2,11 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabaseClient";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
-// 1. Premium SVG Logo for Xabarnoma
-const XabarnomaLogo = () => (
+// 1. Premium SVG Logo for Habarnoma
+const HabarnomaLogo = () => (
   <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect width="24" height="24" rx="6" fill="#161f30" stroke="#2d3d5a" strokeWidth="1.5" />
     <path d="M7 9L12 13L17 9" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -85,19 +87,64 @@ interface Message {
 
 const avatarOptions = ["👨‍💻", "👩‍💻", "🦊", "🐼", "🤖", "👻", "🐱", "🦖"];
 
+const CodeBlock = ({ code, language }: { code: string; language: string }) => {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <div className="code-block-wrapper">
+      <div className="code-block-header">
+        <span className="code-language">{language || "text"}</span>
+        <button className="code-copy-btn" onClick={handleCopy}>
+          {copied ? <CheckIcon /> : <CopyIcon />} {copied ? "Nusxalandi" : "Nusxalash"}
+        </button>
+      </div>
+      <SyntaxHighlighter language={language || "text"} style={vscDarkPlus} customStyle={{ margin: 0, borderRadius: "0 0 8px 8px", fontSize: "14px", padding: "12px" }}>
+        {code}
+      </SyntaxHighlighter>
+    </div>
+  );
+};
+
 const renderTextWithLinks = (text: string) => {
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const parts = text.split(urlRegex);
-  return parts.map((part, index) => {
-    if (part.match(urlRegex)) {
-      return (
-        <a key={index} href={part} target="_blank" rel="noopener noreferrer" className="message-link">
-          {part}
-        </a>
-      );
+  const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  const renderLinks = (str: string, baseIndex: number) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const urlParts = str.split(urlRegex);
+    return urlParts.map((part, index) => {
+      if (part.match(urlRegex)) {
+        return (
+          <a key={`link-${baseIndex}-${index}`} href={part} target="_blank" rel="noopener noreferrer" className="message-link">
+            {part}
+          </a>
+        );
+      }
+      return <span key={`text-${baseIndex}-${index}`}>{part}</span>;
+    });
+  };
+
+  while ((match = codeBlockRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(renderLinks(text.substring(lastIndex, match.index), lastIndex));
     }
-    return part;
-  });
+    const language = match[1] || "";
+    const code = match[2];
+    parts.push(<CodeBlock key={`code-${match.index}`} code={code} language={language} />);
+    lastIndex = match.index + match[0].length;
+  }
+  
+  if (lastIndex < text.length) {
+    parts.push(renderLinks(text.substring(lastIndex), lastIndex));
+  }
+
+  return parts.length > 0 ? <>{parts}</> : renderLinks(text, 0);
 };
 
 const fileToBase64 = (file: File): Promise<string> => {
@@ -156,6 +203,7 @@ export default function Home() {
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [viewerImage, setViewerImage] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -379,15 +427,23 @@ export default function Home() {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
-      if (!file.type.startsWith("image/")) {
-        alert("Faqat rasmlarni yuklash mumkin!");
-        if (fileInputRef.current) fileInputRef.current.value = "";
-        return;
+      if (file.type.startsWith("image/")) {
+        setSelectedFile(file);
+      } else {
+        try {
+          const text = await file.text();
+          let ext = file.name.split('.').pop() || "";
+          if (ext === "txt") ext = "";
+          const codeBlock = `\`\`\`${ext}\n${text}\n\`\`\``;
+          setNewMessage((prev) => prev ? `${prev}\n\n${codeBlock}` : codeBlock);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+        } catch (err) {
+          alert("Faylni o'qishda xatolik yuz berdi!");
+        }
       }
-      setSelectedFile(file);
     }
   };
 
@@ -561,11 +617,11 @@ export default function Home() {
       <div className="loading-screen">
         <div className="loading-container">
           <div className="loading-logo-wrapper">
-            <XabarnomaLogo />
+            <HabarnomaLogo />
             <div className="logo-glow-ring"></div>
           </div>
           <h1 className="loading-title">
-            Xabarnoma<span className="logo-accent">.</span>
+            Habarnoma<span className="logo-accent">.</span>
           </h1>
           <p className="loading-subtitle">Xavfsiz va tezkor muloqot tizimi</p>
           <div className="premium-spinner-bar">
@@ -605,10 +661,10 @@ export default function Home() {
       <div className="modal-overlay">
         <div className="modal-content glass-effect">
           <div className="modal-logo">
-            <XabarnomaLogo />
+            <HabarnomaLogo />
           </div>
           <h1 className="modal-title">
-            Xabarnoma<span className="logo-accent">.</span>
+            Habarnoma<span className="logo-accent">.</span>
           </h1>
           <p className="modal-subtitle">
             Haqiqiy vaqtdagi chat tizimiga xush kelibsiz. Davom etish uchun ismingizni kiriting.
@@ -692,9 +748,9 @@ export default function Home() {
     <div className="app-container">
       <header className="app-header glass-effect">
         <div className="logo-container">
-          <XabarnomaLogo />
+          <HabarnomaLogo />
           <h1 className="logo-text">
-            Xabarnoma<span className="logo-accent">.</span>
+            Habarnoma<span className="logo-accent">.</span>
           </h1>
         </div>
         <div className="header-actions-group" style={{ display: "flex", alignItems: "center", gap: "16px" }}>
@@ -723,7 +779,7 @@ export default function Home() {
         <div className="messages-container">
           {messages.length === 0 ? (
             <div className="messages-empty-state">
-              <XabarnomaLogo />
+              <HabarnomaLogo />
               <h3>Hozircha xabarlar yo&apos;q</h3>
               <p>Birinchi bo&apos;lib xabar yuboring!</p>
             </div>
@@ -768,7 +824,7 @@ export default function Home() {
                       {msg.file_url && (
                         <div className="message-attachment">
                           {msg.file_type?.startsWith("image/") ? (
-                            <img src={msg.file_url} alt="Birma rasm" className="attachment-image" />
+                            <img src={msg.file_url} alt="Birma rasm" className="attachment-image" onClick={() => setViewerImage(msg.file_url!)} style={{ cursor: "pointer" }} />
                           ) : msg.file_type?.startsWith("audio/") ? (
                             <audio controls src={msg.file_url} className="attachment-audio" />
                           ) : (
@@ -824,6 +880,12 @@ export default function Home() {
 
         {/* Input Area with Contexts */}
         <div className="input-area-container">
+          {isSending && (
+            <div className="sending-overlay">
+              <div className="spinner-small"></div>
+              <span>Yuklanmoqda...</span>
+            </div>
+          )}
           
           {editingMessage && (
             <div className="replying-context editing-context">
@@ -877,7 +939,7 @@ export default function Home() {
                   type="file" 
                   ref={fileInputRef} 
                   onChange={handleFileChange} 
-                  accept="image/*"
+                  accept="image/*,.js,.ts,.py,.txt,.html,.css,.json,.md,.cpp,.c,.java"
                   style={{ display: "none" }} 
                 />
               </>
@@ -908,6 +970,15 @@ export default function Home() {
         <span className="footer-separator">•</span>
         <span>Telegram kanal: <a href="https://t.me/HayrullohAdusamadov" target="_blank" rel="noreferrer" onClick={() => sessionStorage.setItem("clicked_telegram_join", "true")}>@HayrullohAdusamadov</a></span>
       </footer>
+
+      {viewerImage && (
+        <div className="image-viewer-overlay" onClick={() => setViewerImage(null)}>
+          <button className="viewer-close-btn" onClick={() => setViewerImage(null)}>
+            <CloseIcon />
+          </button>
+          <img src={viewerImage} alt="Kattalashtirilgan rasm" className="viewer-image-full" onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
     </div>
   );
 }

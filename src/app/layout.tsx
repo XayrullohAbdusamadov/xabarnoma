@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Xabarnoma - Realtime Chat",
+  title: "Habarnoma - Realtime Chat",
   description: "Next.js va Supabase asosida yaratilgan zamonaviy chat ilovasi.",
 };
 
