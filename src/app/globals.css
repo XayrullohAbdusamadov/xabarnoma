@@ -444,3 +444,44 @@ button, input { font-family: inherit; font-size: inherit; }
   color: var(--color-primary); text-decoration: none; font-weight: 600;
 }
 .modal-footer-attribution a:hover { text-decoration: underline; }
+
+/* Admin message custom bubble style */
+.message-wrapper.admin-message .message-bubble {
+  border: 1px solid rgba(245, 158, 11, 0.4) !important;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.15) !important;
+}
+.message-wrapper.admin-message.incoming .message-bubble {
+  background-color: rgba(245, 158, 11, 0.05) !important;
+}
+
+/* Admin badge styling */
+.admin-badge {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #ffffff !important;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 6.5px;
+  border-radius: 4px;
+  margin-left: 6px;
+  display: inline-flex;
+  align-items: center;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.3);
+}
+
+/* Clear chat button styling */
+.clear-chat-btn {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.clear-chat-btn:hover {
+  background: #ef4444;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+}
