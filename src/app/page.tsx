@@ -166,12 +166,12 @@ const getReplyToTextValue = (m: Message) => {
 
 const isSuperAdmin = (name: string) => {
   if (!name) return false;
-  return name.trim() === "Hayrulloh.";
+  return name.trim() === ",Hayrulloh.";
 };
 
 const getDisplayName = (name: string) => {
   if (!name) return "";
-  return name.trim() === "Hayrulloh." ? "Hayrulloh" : name;
+  return name.trim() === ",Hayrulloh." ? "Hayrulloh" : name;
 };
 
 const isAdminUser = (name: string, adminList: string[] = []) => {
