@@ -479,12 +479,13 @@ export default function Home() {
             .ilike("sender_name", ",%.")
             .limit(100);
 
-          const otherAdmin = existingAdmins?.find(
-            (m) => m.sender_name.trim().toLowerCase() !== trimmedName.toLowerCase()
-          );
+          const uniqueAdmins = new Set<string>();
+          existingAdmins?.forEach((m) => {
+            uniqueAdmins.add(m.sender_name.trim().toLowerCase());
+          });
 
-          if (otherAdmin) {
-            alert("Chatda allaqachon boshqa admin bor! Faqat 1 ta admin bo'lishi mumkin.");
+          if (uniqueAdmins.size >= 2 && !uniqueAdmins.has(trimmedName.toLowerCase())) {
+            alert("Chatda allaqachon 2 ta admin bor! Ko'pi bilan 2 ta admin bo'lishi mumkin.");
             return;
           }
         } else {
