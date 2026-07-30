@@ -676,3 +676,27 @@ button, input { font-family: inherit; font-size: inherit; }
   0%, 100% { opacity: 1; }
   50% { opacity: 0.6; }
 }
+
+/* Telegram-like Message Select Mode Styling */
+.message-wrapper.in-select-mode {
+  cursor: pointer;
+  user-select: none;
+}
+.message-wrapper.in-select-mode .message-bubble-container:hover {
+  filter: brightness(1.1);
+}
+.message-wrapper.in-select-mode.is-selected-message .message-bubble {
+  outline: 2px solid var(--color-primary);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+.custom-checkbox {
+  cursor: pointer;
+}
+.custom-checkbox.checked svg {
+  stroke: #ffffff;
+}
+.select-mode-actions button {
+  font-size: 0.85rem;
+  padding: 6px 12px;
+}
+

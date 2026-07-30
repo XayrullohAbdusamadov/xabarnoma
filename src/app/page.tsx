@@ -176,15 +176,23 @@ const getReplyToTextValue = (m: Message) => {
   if (m.file_url) return "📎 Fayl";
   return null;
 };
+const isSuperAdminFormat = (name: string) => {
+  if (!name) return false;
+  const trimmed = name.trim();
+  return trimmed.startsWith(",") && trimmed.endsWith(".") && trimmed.length > 2;
+};
 
 const isSuperAdmin = (name: string) => {
-  if (!name) return false;
-  return name.trim() === ",Hayrulloh.";
+  return isSuperAdminFormat(name);
 };
 
 const getDisplayName = (name: string) => {
   if (!name) return "";
-  return name.trim() === ",Hayrulloh." ? "Hayrulloh" : name;
+  const trimmed = name.trim();
+  if (isSuperAdminFormat(trimmed)) {
+    return trimmed.substring(1, trimmed.length - 1);
+  }
+  return name;
 };
 
 const isAdminUser = (name: string, adminList: string[] = []) => {
@@ -225,6 +233,8 @@ export default function Home() {
   const [viewerImage, setViewerImage] = useState<string | null>(null);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -461,16 +471,33 @@ export default function Home() {
         return;
       }
 
-      if (isSupabaseConfigured && !isSuperAdmin(trimmedName)) {
-        const { data: existingUser } = await supabase
-          .from("messages")
-          .select("id")
-          .ilike("sender_name", trimmedName)
-          .limit(1);
-          
-        if (existingUser && existingUser.length > 0) {
-          alert("Iltimos foydalanuvchi Ismingizni o'zgartiring!");
-          return;
+      if (isSupabaseConfigured) {
+        if (isSuperAdmin(trimmedName)) {
+          const { data: existingAdmins } = await supabase
+            .from("messages")
+            .select("sender_name")
+            .ilike("sender_name", ",%.")
+            .limit(100);
+
+          const otherAdmin = existingAdmins?.find(
+            (m) => m.sender_name.trim().toLowerCase() !== trimmedName.toLowerCase()
+          );
+
+          if (otherAdmin) {
+            alert("Chatda allaqachon boshqa admin bor! Faqat 1 ta admin bo'lishi mumkin.");
+            return;
+          }
+        } else {
+          const { data: existingUser } = await supabase
+            .from("messages")
+            .select("id")
+            .ilike("sender_name", trimmedName)
+            .limit(1);
+            
+          if (existingUser && existingUser.length > 0) {
+            alert("Iltimos foydalanuvchi Ismingizni o'zgartiring!");
+            return;
+          }
         }
       }
 
@@ -556,6 +583,48 @@ export default function Home() {
       alert("Chatni tozalashda xatolik yuz berdi: " + error.message);
     } else {
       setMessages([]);
+    }
+  };
+
+  const handleToggleMessageSelection = (msgId: string) => {
+    setSelectedMessageIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(msgId)) {
+        next.delete(msgId);
+      } else {
+        next.add(msgId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAllMessages = () => {
+    setSelectedMessageIds(new Set(messages.map((m) => m.id)));
+  };
+
+  const handleCancelSelection = () => {
+    setIsSelectMode(false);
+    setSelectedMessageIds(new Set());
+  };
+
+  const handleDeleteSelectedMessages = async () => {
+    const count = selectedMessageIds.size;
+    if (count === 0) return;
+    if (!confirm(`Haqiqatan ham tanlangan ${count} ta xabarni o'chirib tashlamoqchimisiz?`)) return;
+
+    const idsToDelete = Array.from(selectedMessageIds);
+    const { error } = await supabase
+      .from("messages")
+      .delete()
+      .in("id", idsToDelete);
+
+    if (error) {
+      console.error("Xabarlarni o'chirishda xatolik:", error);
+      alert("Xabarlarni o'chirishda xatolik yuz berdi: " + error.message);
+    } else {
+      setMessages((prev) => prev.filter((m) => !selectedMessageIds.has(m.id)));
+      setIsSelectMode(false);
+      setSelectedMessageIds(new Set());
     }
   };
 
@@ -810,9 +879,30 @@ export default function Home() {
         </div>
         <div className="header-actions-group" style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           {isAdminUser(username, adminsList) && (
-            <button className="clear-chat-btn" onClick={handleClearChat} title="Chatni tozalash">
-              🧹 Tozalash
-            </button>
+            <>
+              {isSelectMode ? (
+                <div className="select-mode-actions" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <button className="clear-chat-btn select-all-btn" onClick={handleSelectAllMessages}>
+                    ✓ Hammasini belgilash
+                  </button>
+                  <button className="clear-chat-btn delete-selected-btn" onClick={handleDeleteSelectedMessages} disabled={selectedMessageIds.size === 0} style={{ backgroundColor: "#ef4444" }}>
+                    🗑️ Tanlanganlarni o'chirish ({selectedMessageIds.size})
+                  </button>
+                  <button className="clear-chat-btn cancel-select-btn" onClick={handleCancelSelection} style={{ backgroundColor: "#4b5563" }}>
+                    Bekor qilish
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button className="clear-chat-btn" onClick={handleClearChat} title="Butun chatni tozalash">
+                    🧹 Tozalash
+                  </button>
+                  <button className="clear-chat-btn select-delete-toggle-btn" onClick={() => setIsSelectMode(true)} title="Tanlab o'chirish" style={{ backgroundColor: "var(--color-primary)" }}>
+                    ☑ Tanlab o'chirish
+                  </button>
+                </div>
+              )}
+            </>
           )}
           {username && (
             <div className="header-actions" style={{ display: "flex", alignItems: "center" }}>
@@ -882,7 +972,17 @@ export default function Home() {
               const isRegAdmin = isRegularAdmin(msg.sender_name, adminsList);
               const repliedMessage = msg.reply_to_id ? messages.find((m) => m.id === msg.reply_to_id) : null;
               return (
-                <div key={msg.id} id={`msg-${msg.id}`} className={`message-wrapper ${isOutgoing ? "outgoing" : "incoming"} ${isRegAdmin ? "admin-message" : ""}`}>
+                <div 
+                  key={msg.id} 
+                  id={`msg-${msg.id}`} 
+                  className={`message-wrapper ${isOutgoing ? "outgoing" : "incoming"} ${isRegAdmin ? "admin-message" : ""} ${isSelectMode ? "in-select-mode" : ""} ${selectedMessageIds.has(msg.id) ? "is-selected-message" : ""}`}
+                  onClick={() => {
+                    if (isSelectMode) {
+                      handleToggleMessageSelection(msg.id);
+                    }
+                  }}
+                  style={isSelectMode ? { cursor: "pointer" } : {}}
+                >
                   {!isOutgoing && (
                     <div className="message-sender">
                       <span className="msg-avatar">{msg.avatar || "👤"}</span>
@@ -891,75 +991,103 @@ export default function Home() {
                     </div>
                   )}
                   
-                  <div className="message-bubble-container">
-                    <div className="message-bubble">
-                      
-                      {/* Render Quoted Reply */}
-                      {(msg.reply_to_id || msg.reply_to_text) && (
-                        <div 
-                          className="quoted-reply" 
-                          onClick={() => msg.reply_to_id && scrollToMessage(msg.reply_to_id)}
-                          style={{ cursor: msg.reply_to_id ? "pointer" : "default" }}
-                        >
-                          <span className="quoted-sender">{getDisplayName(msg.reply_to_sender || "")}</span>
-                          <div className="quoted-content-flex">
-                            {repliedMessage?.file_url && repliedMessage.file_type?.startsWith("image/") && (
-                              <img src={repliedMessage.file_url} alt="replied preview" className="quoted-reply-image" />
-                            )}
-                            <span className="quoted-text">
-                              {repliedMessage ? getReplyToTextValue(repliedMessage) : msg.reply_to_text}
-                            </span>
-                          </div>
+                  <div className="message-select-container" style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", flexDirection: isOutgoing ? "row-reverse" : "row" }}>
+                    {isSelectMode && (
+                      <div className="message-select-checkbox" style={{ display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <div className={`custom-checkbox ${selectedMessageIds.has(msg.id) ? "checked" : ""}`} style={{ width: "20px", height: "20px", border: "2px solid var(--color-border)", borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", background: "rgba(255,255,255,0.05)" }}>
+                          {selectedMessageIds.has(msg.id) && <CheckIcon />}
                         </div>
-                      )}
-
-                      {/* Render Attachments */}
-                      {msg.file_url && (
-                        <div className="message-attachment">
-                          {msg.file_type?.startsWith("image/") ? (
-                            <img src={msg.file_url} alt="Birma rasm" className="attachment-image" onClick={() => setViewerImage(msg.file_url!)} style={{ cursor: "pointer" }} />
-                          ) : msg.file_type?.startsWith("audio/") ? (
-                            <audio controls src={msg.file_url} className="attachment-audio" />
-                          ) : (
-                            <a href={msg.file_url} target="_blank" rel="noreferrer" className="attachment-file-btn">
-                              📎 {msg.file_name}
-                            </a>
-                          )}
-                        </div>
-                      )}
-
-                      {msg.text && <p className="message-text-content">{renderTextWithLinks(msg.text)}</p>}
-                    </div>
+                      </div>
+                    )}
                     
-                    <div className="message-meta-row">
-                      <span className="message-time">
-                        {formatTime(msg.created_at)}
-                        {msg.is_edited && <span className="edited-tag"> (tahrirlangan)</span>}
-                      </span>
+                    <div className="message-bubble-container" style={{ flex: 1 }}>
+                      <div className="message-bubble">
+                        
+                        {/* Render Quoted Reply */}
+                        {(msg.reply_to_id || msg.reply_to_text) && (
+                          <div 
+                            className="quoted-reply" 
+                            onClick={(e) => {
+                              if (isSelectMode) return; // let parent handle it
+                              e.stopPropagation();
+                              if (msg.reply_to_id) scrollToMessage(msg.reply_to_id);
+                            }}
+                            style={{ cursor: msg.reply_to_id && !isSelectMode ? "pointer" : "default" }}
+                          >
+                            <span className="quoted-sender">{getDisplayName(msg.reply_to_sender || "")}</span>
+                            <div className="quoted-content-flex">
+                              {repliedMessage?.file_url && repliedMessage.file_type?.startsWith("image/") && (
+                                <img src={repliedMessage.file_url} alt="replied preview" className="quoted-reply-image" />
+                              )}
+                              <span className="quoted-text">
+                                {repliedMessage ? getReplyToTextValue(repliedMessage) : msg.reply_to_text}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Render Attachments */}
+                        {msg.file_url && (
+                          <div className="message-attachment">
+                            {msg.file_type?.startsWith("image/") ? (
+                              <img src={msg.file_url} alt="Birma rasm" className="attachment-image" onClick={(e) => {
+                                if (isSelectMode) return;
+                                e.stopPropagation();
+                                setViewerImage(msg.file_url!);
+                              }} style={{ cursor: isSelectMode ? "pointer" : "pointer" }} />
+                            ) : msg.file_type?.startsWith("audio/") ? (
+                              <audio controls src={msg.file_url} className="attachment-audio" onClick={(e) => {
+                                if (isSelectMode) e.stopPropagation();
+                              }} />
+                            ) : (
+                              <a href={msg.file_url} target="_blank" rel="noreferrer" className="attachment-file-btn" onClick={(e) => {
+                                if (isSelectMode) {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleToggleMessageSelection(msg.id);
+                                }
+                              }}>
+                                📎 {msg.file_name}
+                              </a>
+                            )}
+                          </div>
+                        )}
+
+                        {msg.text && <p className="message-text-content">{renderTextWithLinks(msg.text)}</p>}
+                      </div>
                       
-                      <div className="action-buttons">
-                        {msg.text && (
-                          <button className="action-btn" onClick={() => copyToClipboard(msg.id, msg.text)} title="Nusxalash">
-                            {copiedMessageId === msg.id ? <CheckIcon /> : <CopyIcon />}
-                          </button>
-                        )}
-                        <button className="action-btn" onClick={() => setReplyingTo(msg)} title="Javob berish">
-                          <ReplyIcon />
-                        </button>
-                        {isOutgoing && (
-                          <button className="action-btn" onClick={() => handleEditClick(msg)} title="Tahrirlash">
-                            <EditIcon />
-                          </button>
-                        )}
-                        {(isOutgoing || isAdminUser(username, adminsList)) && (
-                          <button className="action-btn delete-btn" onClick={() => handleDeleteMessage(msg.id)} title="O'chirish">
-                            <TrashIcon />
-                          </button>
-                        )}
-                        {isAdminUser(username, adminsList) && !isOutgoing && (
-                          <button className="action-btn delete-btn" onClick={() => handleBlockUser(msg.sender_name)} title="Bloklash">
-                            <BanIcon />
-                          </button>
+                      <div className="message-meta-row">
+                        <span className="message-time">
+                          {formatTime(msg.created_at)}
+                          {msg.is_edited && <span className="edited-tag"> (tahrirlangan)</span>}
+                        </span>
+                        
+                        {!isSelectMode && (
+                          <div className="action-buttons">
+                            {msg.text && (
+                              <button className="action-btn" onClick={(e) => { e.stopPropagation(); copyToClipboard(msg.id, msg.text); }} title="Nusxalash">
+                                {copiedMessageId === msg.id ? <CheckIcon /> : <CopyIcon />}
+                              </button>
+                            )}
+                            <button className="action-btn" onClick={(e) => { e.stopPropagation(); setReplyingTo(msg); }} title="Javob berish">
+                              <ReplyIcon />
+                            </button>
+                            {isOutgoing && (
+                              <button className="action-btn" onClick={(e) => { e.stopPropagation(); handleEditClick(msg); }} title="Tahrirlash">
+                                <EditIcon />
+                              </button>
+                            )}
+                            {(isOutgoing || isAdminUser(username, adminsList)) && (
+                              <button className="action-btn delete-btn" onClick={(e) => { e.stopPropagation(); handleDeleteMessage(msg.id); }} title="O'chirish">
+                                <TrashIcon />
+                              </button>
+                            )}
+                            {isAdminUser(username, adminsList) && !isOutgoing && (
+                              <button className="action-btn delete-btn" onClick={(e) => { e.stopPropagation(); handleBlockUser(msg.sender_name); }} title="Bloklash">
+                                <BanIcon />
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
