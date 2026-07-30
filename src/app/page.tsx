@@ -850,7 +850,7 @@ export default function Home() {
           </form>
           
           <div className="modal-footer-attribution">
-            <p>Yaratuvchi: <strong>Xayrulloh Abdusamadov</strong></p>
+            <p>Yaratuvchi: <strong>Hayrulloh Abdusamadov</strong></p>
             <p>
               Telegram kanal:{" "}
               <a
