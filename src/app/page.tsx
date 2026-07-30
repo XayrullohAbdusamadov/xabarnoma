@@ -885,10 +885,10 @@ export default function Home() {
                   <button className="clear-chat-btn select-all-btn" onClick={handleSelectAllMessages}>
                     ✓ Hammasini belgilash
                   </button>
-                  <button className="clear-chat-btn delete-selected-btn" onClick={handleDeleteSelectedMessages} disabled={selectedMessageIds.size === 0} style={{ backgroundColor: "#ef4444" }}>
+                  <button className="clear-chat-btn delete-selected-btn" onClick={handleDeleteSelectedMessages} disabled={selectedMessageIds.size === 0}>
                     🗑️ Tanlanganlarni o'chirish ({selectedMessageIds.size})
                   </button>
-                  <button className="clear-chat-btn cancel-select-btn" onClick={handleCancelSelection} style={{ backgroundColor: "#4b5563" }}>
+                  <button className="clear-chat-btn cancel-select-btn" onClick={handleCancelSelection}>
                     Bekor qilish
                   </button>
                 </div>
@@ -897,7 +897,7 @@ export default function Home() {
                   <button className="clear-chat-btn" onClick={handleClearChat} title="Butun chatni tozalash">
                     🧹 Tozalash
                   </button>
-                  <button className="clear-chat-btn select-delete-toggle-btn" onClick={() => setIsSelectMode(true)} title="Tanlab o'chirish" style={{ backgroundColor: "var(--color-primary)" }}>
+                  <button className="clear-chat-btn select-delete-toggle-btn" onClick={() => setIsSelectMode(true)} title="Tanlab o'chirish">
                     ☑ Tanlab o'chirish
                   </button>
                 </div>
