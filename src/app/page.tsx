@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabaseClient";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/cjs/styles/prism";
+import SyntaxHighlighter from "react-syntax-highlighter";
+import { atomOneDark } from "react-syntax-highlighter/dist/cjs/styles/hljs";
 
 // 1. Premium SVG Logo for Habarnoma
 const HabarnomaLogo = () => (
@@ -115,7 +115,7 @@ const CodeBlock = ({ code, language }: { code: string; language: string }) => {
           {copied ? <CheckIcon /> : <CopyIcon />} {copied ? "Nusxalandi" : "Nusxalash"}
         </button>
       </div>
-      <SyntaxHighlighter language={language || "text"} style={vscDarkPlus} customStyle={{ margin: 0, borderRadius: "0 0 8px 8px", fontSize: "14px", padding: "12px" }}>
+      <SyntaxHighlighter language={(language || "text").toLowerCase()} style={atomOneDark} customStyle={{ margin: 0, borderRadius: "0 0 8px 8px", fontSize: "14px", padding: "12px" }}>
         {code}
       </SyntaxHighlighter>
     </div>
