@@ -843,27 +843,24 @@ button, input { font-family: inherit; font-size: inherit; }
   position: absolute;
   bottom: 96px;
   right: 24px;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  background: var(--color-panel-glass);
-  border: 1px solid var(--color-border);
+  background: #111827; /* To'liq to'q fon (shaffof emas, orqadagi rasm ko'rinib qolmasligi uchun) */
+  border: 2px solid var(--color-primary); /* Yorqin yashil chegara */
   color: var(--color-primary);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), 0 0 8px rgba(16, 185, 129, 0.15);
   z-index: 50;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  font-size: 1.1rem;
 }
 
 .scroll-bottom-btn:hover {
   background: var(--color-primary);
-  color: #ffffff;
+  color: #0d1527; /* Hover bo'lganda ranglar almashadi */
   transform: translateY(-2px);
   box-shadow: var(--shadow-glow);
 }
