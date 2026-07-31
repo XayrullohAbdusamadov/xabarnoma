@@ -235,11 +235,24 @@ export default function Home() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const typingChannelRef = useRef<any>(null);
+
+  const handleScroll = () => {
+    if (!messagesContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    if (scrollHeight - scrollTop - clientHeight > 300) {
+      setShowScrollBottom(true);
+    } else {
+      setShowScrollBottom(false);
+    }
+  };
 
   useEffect(() => {
     setIsMounted(true);
@@ -255,34 +268,30 @@ export default function Home() {
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // Guaranteed 3-second timer that CANNOT be blocked by any errors below
-    const timer = setTimeout(() => {
+    // 5-second safety fallback timer that guarantees loading is closed even if network blocks
+    const fallbackTimer = setTimeout(() => {
       setIsLoading(false);
-    }, 3000);
+    }, 5000);
 
-    try {
-      const storedName = typeof window !== "undefined" ? localStorage.getItem("xabarnoma_username") : null;
-      const storedAvatar = typeof window !== "undefined" ? localStorage.getItem("xabarnoma_avatar") : null;
-      if (storedName && storedAvatar) {
-        setUsername(storedName);
-        setAvatar(storedAvatar);
-      }
-    } catch (err) {
-      console.error("LocalStorage error:", err);
-    }
-    
-    if (isSupabaseConfigured) {
-      let blockedChannel: any = null;
-      let adminsChannel: any = null;
+    let blockedChannel: any = null;
+    let adminsChannel: any = null;
 
+    const initData = async () => {
       try {
-        const initData = async () => {
+        const storedName = typeof window !== "undefined" ? localStorage.getItem("xabarnoma_username") : null;
+        const storedAvatar = typeof window !== "undefined" ? localStorage.getItem("xabarnoma_avatar") : null;
+        if (storedName && storedAvatar) {
+          setUsername(storedName);
+          setAvatar(storedAvatar);
+        }
+
+        if (isSupabaseConfigured) {
           try {
             const { data: blockedData } = await supabase.from("blocked_users").select("username");
             if (blockedData) {
               const names = blockedData.map((b: any) => b.username.toLowerCase());
               setBlockedUsers(names);
-              const currentStoredName = typeof window !== "undefined" ? sessionStorage.getItem("xabarnoma_username") : null;
+              const currentStoredName = typeof window !== "undefined" ? localStorage.getItem("xabarnoma_username") : null;
               if (currentStoredName && names.includes(currentStoredName.trim().toLowerCase())) {
                 setIsSelfBlocked(true);
               }
@@ -299,81 +308,91 @@ export default function Home() {
           } catch (e) {
             console.error("admins error:", e);
           }
-        };
-        initData();
-
-        try {
-          blockedChannel = supabase
-            .channel("blocked-users-changes")
-            .on(
-              "postgres_changes",
-              { event: "*", schema: "public", table: "blocked_users" },
-              (payload) => {
-                try {
-                  if (payload.eventType === "INSERT") {
-                    const newBlocked = (payload.new as any).username;
-                    setBlockedUsers((prev) => [...prev, newBlocked.toLowerCase()]);
-                    
-                    const currentStoredName = typeof window !== "undefined" ? sessionStorage.getItem("xabarnoma_username") : null;
-                    if (currentStoredName && currentStoredName.trim().toLowerCase() === newBlocked.trim().toLowerCase()) {
-                      setIsSelfBlocked(true);
-                      alert("Siz admin tomonidan bloklandingiz!");
-                      sessionStorage.removeItem("xabarnoma_username");
-                      sessionStorage.removeItem("xabarnoma_avatar");
-                      setUsername("");
-                      setAvatar("");
-                    }
-                  } else if (payload.eventType === "DELETE") {
-                    const blockedName = (payload.old as any).username;
-                    if (blockedName) {
-                      setBlockedUsers((prev) => prev.filter((name) => name !== blockedName.toLowerCase()));
-                      const currentStoredName = typeof window !== "undefined" ? sessionStorage.getItem("xabarnoma_username") : null;
-                      if (currentStoredName && currentStoredName.trim().toLowerCase() === blockedName.trim().toLowerCase()) {
-                        setIsSelfBlocked(false);
-                      }
-                    }
-                  }
-                } catch (e) {
-                  console.error("Realtime blocked error:", e);
-                }
-              }
-            )
-            .subscribe();
-        } catch (e) {
-          console.error("blockedChannel subscribe error:", e);
         }
-
-        try {
-          adminsChannel = supabase
-            .channel("admins-changes")
-            .on(
-              "postgres_changes",
-              { event: "*", schema: "public", table: "admins" },
-              () => {
-                supabase.from("admins").select("username").order("created_at", { ascending: true }).then(
-                  ({ data }) => {
-                    if (data) setAdminsList(data.map((a: any) => a.username));
-                  },
-                  () => {}
-                );
-              }
-            )
-            .subscribe();
-        } catch (e) {
-          console.error("adminsChannel subscribe error:", e);
+        
+        // If they do not have a registered username, we can immediately dismiss the loader.
+        // Otherwise, the messages useEffect will dismiss the loader once fetched.
+        if (!storedName) {
+          setIsLoading(false);
+          clearTimeout(fallbackTimer);
         }
       } catch (err) {
-        console.error("Supabase config block error:", err);
+        console.error("Initialization error:", err);
+        setIsLoading(false);
+        clearTimeout(fallbackTimer);
+      }
+    };
+    
+    initData();
+
+    if (isSupabaseConfigured) {
+      try {
+        blockedChannel = supabase
+          .channel("blocked-users-changes")
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "blocked_users" },
+            (payload) => {
+              try {
+                if (payload.eventType === "INSERT") {
+                  const newBlocked = (payload.new as any).username;
+                  setBlockedUsers((prev) => [...prev, newBlocked.toLowerCase()]);
+                  
+                  const currentStoredName = typeof window !== "undefined" ? sessionStorage.getItem("xabarnoma_username") : null;
+                  if (currentStoredName && currentStoredName.trim().toLowerCase() === newBlocked.trim().toLowerCase()) {
+                    setIsSelfBlocked(true);
+                    alert("Siz admin tomonidan bloklandingiz!");
+                    sessionStorage.removeItem("xabarnoma_username");
+                    sessionStorage.removeItem("xabarnoma_avatar");
+                    setUsername("");
+                    setAvatar("");
+                  }
+                } else if (payload.eventType === "DELETE") {
+                  const blockedName = (payload.old as any).username;
+                  if (blockedName) {
+                    setBlockedUsers((prev) => prev.filter((name) => name !== blockedName.toLowerCase()));
+                    const currentStoredName = typeof window !== "undefined" ? sessionStorage.getItem("xabarnoma_username") : null;
+                    if (currentStoredName && currentStoredName.trim().toLowerCase() === blockedName.trim().toLowerCase()) {
+                      setIsSelfBlocked(false);
+                    }
+                  }
+                }
+              } catch (e) {
+                console.error("Realtime blocked error:", e);
+              }
+            }
+          )
+          .subscribe();
+      } catch (e) {
+        console.error("blockedChannel subscribe error:", e);
       }
 
-      return () => {
-        clearTimeout(timer);
-        if (blockedChannel) supabase.removeChannel(blockedChannel);
-        if (adminsChannel) supabase.removeChannel(adminsChannel);
-      };
+      try {
+        adminsChannel = supabase
+          .channel("admins-changes")
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "admins" },
+            () => {
+              supabase.from("admins").select("username").order("created_at", { ascending: true }).then(
+                ({ data }) => {
+                  if (data) setAdminsList(data.map((a: any) => a.username));
+                },
+                () => {}
+              );
+            }
+          )
+          .subscribe();
+      } catch (e) {
+        console.error("adminsChannel subscribe error:", e);
+      }
     }
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(fallbackTimer);
+      if (blockedChannel) supabase.removeChannel(blockedChannel);
+      if (adminsChannel) supabase.removeChannel(adminsChannel);
+    };
   }, []);
 
   useEffect(() => {
@@ -393,6 +412,7 @@ export default function Home() {
         setMessages(data);
       }
       setIsFetchingMessages(false);
+      setIsLoading(false); // Successfully loaded initial chat screen
     };
 
     fetchMessages();
@@ -496,7 +516,7 @@ export default function Home() {
             .limit(1);
             
           if (existingUser && existingUser.length > 0) {
-            alert("Iltimos foydalanuvchi Ismingizni o'zgartiring!");
+            alert("Ushbu foydalanuvchi ismi allaqachon ishlatilgan! Iltimos, boshqa ism tanlang.");
             return;
           }
         }
@@ -516,6 +536,8 @@ export default function Home() {
       const file = e.target.files[0];
       if (file.type.startsWith("image/")) {
         setSelectedFile(file);
+        const previewUrl = URL.createObjectURL(file);
+        setFilePreviewUrl(previewUrl);
       } else {
         try {
           const text = await file.text();
@@ -528,6 +550,16 @@ export default function Home() {
           alert("Faylni o'qishda xatolik yuz berdi!");
         }
       }
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      const formEvent = {
+        preventDefault: () => {},
+      } as React.FormEvent;
+      handleSendMessage(formEvent);
     }
   };
 
@@ -690,15 +722,37 @@ export default function Home() {
 
     if (selectedFile) {
       try {
-        fileUrl = await fileToBase64(selectedFile);
+        const fileExt = selectedFile.name.split('.').pop() || '';
+        const uniqueFileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('chat_uploads')
+          .upload(uniqueFileName, selectedFile);
+          
+        if (!uploadError && uploadData) {
+          const { data: { publicUrl } } = supabase.storage
+            .from('chat_uploads')
+            .getPublicUrl(uniqueFileName);
+          fileUrl = publicUrl;
+        } else {
+          console.warn("Storage-ga yuklashda xatolik, Base64 fallback-dan foydalaniladi:", uploadError);
+          fileUrl = await fileToBase64(selectedFile);
+        }
         fileType = selectedFile.type;
         fileName = selectedFile.name;
       } catch (err) {
-        console.error("Faylni Base64 formatiga o'tkazishda xatolik:", err);
-        alert("Rasmni o'qishda xatolik yuz berdi.");
-        setIsSending(false);
-        setNewMessage(messageText);
-        return;
+        console.error("Faylni yuklashda xatolik yuz berdi, base64 ga o'tishga harakat qilinadi:", err);
+        try {
+          fileUrl = await fileToBase64(selectedFile);
+          fileType = selectedFile.type;
+          fileName = selectedFile.name;
+        } catch (base64Err) {
+          console.error("Base64 ga o'tkazish ham muvaffaqiyatsiz bo'ldi:", base64Err);
+          alert("Rasmni o'qishda xatolik yuz berdi.");
+          setIsSending(false);
+          setNewMessage(messageText);
+          return;
+        }
       }
     }
 
@@ -723,6 +777,10 @@ export default function Home() {
     } else {
       setReplyingTo(null);
       setSelectedFile(null);
+      if (filePreviewUrl) {
+        URL.revokeObjectURL(filePreviewUrl);
+        setFilePreviewUrl(null);
+      }
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
     
@@ -942,11 +1000,6 @@ export default function Home() {
       </header>
 
       <div className="chat-window glass-effect-subtle">
-        {typingUsers.length > 0 && (
-          <div className="typing-indicator">
-            {typingUsers.map(getDisplayName).join(", ")} yozmoqda...
-          </div>
-        )}
         {!isSupabaseConfigured && (
           <div style={{ padding: "20px" }}>
             <div className="config-banner">
@@ -955,7 +1008,7 @@ export default function Home() {
           </div>
         )}
 
-        <div className="messages-container">
+        <div className="messages-container" ref={messagesContainerRef} onScroll={handleScroll}>
           {isFetchingMessages ? (
             <div className="messages-empty-state">
               <div className="spinner-small" style={{ width: 40, height: 40, borderWidth: 4, margin: "0 auto 16px" }}></div>
@@ -1097,8 +1150,28 @@ export default function Home() {
               );
             })
           )}
+          {typingUsers.length > 0 && (
+            <div className="typing-indicator-bubble">
+              <div className="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+              <span>{typingUsers.map(getDisplayName).join(", ")} yozmoqda...</span>
+            </div>
+          )}
           <div ref={messagesEndRef} />
         </div>
+
+        {showScrollBottom && (
+          <button 
+            className="scroll-bottom-btn" 
+            onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })}
+            title="Pastga tushish"
+          >
+            ⬇
+          </button>
+        )}
 
         {/* Input Area with Contexts */}
         <div className="input-area-container">
@@ -1143,9 +1216,26 @@ export default function Home() {
 
           {selectedFile && !editingMessage && (
             <div className="file-preview-context">
-              <PaperclipIcon />
-              <span className="file-preview-name">{selectedFile.name}</span>
-              <button className="close-reply-btn" onClick={() => { setSelectedFile(null); if(fileInputRef.current) fileInputRef.current.value = ""; }} type="button">
+              <div className="file-preview-info">
+                {filePreviewUrl ? (
+                  <img src={filePreviewUrl} alt="Upload preview" className="file-upload-thumbnail" />
+                ) : (
+                  <PaperclipIcon />
+                )}
+                <span className="file-preview-name">{selectedFile.name}</span>
+              </div>
+              <button 
+                className="close-reply-btn" 
+                onClick={() => { 
+                  setSelectedFile(null); 
+                  if (filePreviewUrl) {
+                    URL.revokeObjectURL(filePreviewUrl);
+                    setFilePreviewUrl(null);
+                  }
+                  if(fileInputRef.current) fileInputRef.current.value = ""; 
+                }} 
+                type="button"
+              >
                 <CloseIcon />
               </button>
             </div>
@@ -1176,8 +1266,7 @@ export default function Home() {
               </>
             )}
 
-            <input
-              type="text"
+            <textarea
               placeholder={isSupabaseConfigured ? (editingMessage ? "Tahrirlash..." : "Xabaringizni yozing...") : "Ulanish kutilmoqda..."}
               value={newMessage}
               onChange={(e) => {
@@ -1198,9 +1287,12 @@ export default function Home() {
                   }, 2000);
                 }
               }}
+              onKeyDown={handleKeyDown}
               disabled={!isSupabaseConfigured || isSending}
               className="chat-input"
               autoFocus={!!editingMessage}
+              rows={1}
+              style={{ resize: "none", maxHeight: "120px", overflowY: "auto", borderRadius: "18px" }}
             />
             
             <button
