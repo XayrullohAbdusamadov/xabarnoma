@@ -558,18 +558,23 @@ button, input { font-family: inherit; font-size: inherit; }
   letter-spacing: 0.5px;
 }
 .code-copy-btn {
-  background: transparent;
-  border: none;
-  color: #a3a3a3;
-  font-size: 0.75rem;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
-  transition: color 0.2s;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: var(--color-primary) !important;
+  padding: 4px 10px !important;
+  border-radius: 6px !important;
+  font-size: 0.7rem !important;
+  font-weight: 600 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 .code-copy-btn:hover {
-  color: #ffffff;
+  background: var(--color-primary) !important;
+  color: #070b14 !important;
+  border-color: var(--color-primary) !important;
 }
 
 /* Sending Overlay (Loading state) */
