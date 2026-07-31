@@ -224,7 +224,6 @@ export default function Home() {
   const [isSending, setIsSending] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showCodeModal, setShowCodeModal] = useState(false);
-  const [showInstallAlert, setShowInstallAlert] = useState(false);
   const [codeSnippet, setCodeSnippet] = useState("");
   const [codeLanguage, setCodeLanguage] = useState("");
   
@@ -238,7 +237,6 @@ export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [viewerImage, setViewerImage] = useState<string | null>(null);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
   const [showScrollBottom, setShowScrollBottom] = useState(false);
@@ -266,13 +264,6 @@ export default function Home() {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW register failed', err));
     }
-
-    const handleBeforeInstallPrompt = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     // 5-second safety fallback timer that guarantees loading is closed even if network blocks
     const fallbackTimer = setTimeout(() => {
@@ -797,17 +788,6 @@ export default function Home() {
     setIsSending(false);
   };
 
-  const handleInstallClick = () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.then((choiceResult: any) => {
-        setDeferredPrompt(null);
-      });
-    } else {
-      setShowInstallAlert(true);
-    }
-  };
-
   const formatTime = (dateStr: string) => {
     try {
       const date = new Date(dateStr);
@@ -976,18 +956,6 @@ export default function Home() {
                 <span className="user-name hidden sm:block">{getDisplayName(username)}</span>
                 {isAdminUser(username, adminsList) && <span className="admin-badge">👑</span>}
               </div>
-              <button 
-                className="action-btn"
-                style={{ opacity: 1, transform: "none", color: "var(--color-primary)", backgroundColor: "rgba(16, 185, 129, 0.1)", marginLeft: "12px", width: "36px", height: "36px" }}
-                onClick={handleInstallClick}
-                title="Yorliq sifatida o'rnatish"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2-2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-              </button>
               <button 
                 className="action-btn" 
                 style={{ opacity: 1, transform: "none", color: "#ef4444", backgroundColor: "rgba(239, 68, 68, 0.1)", marginLeft: "12px", width: "36px", height: "36px" }} 
@@ -1432,30 +1400,6 @@ export default function Home() {
         </div>
       )}
 
-      {showInstallAlert && (
-        <div className="modal-overlay">
-          <div className="modal-content glass-effect" style={{ borderColor: "var(--color-primary)", maxWidth: "400px", textAlign: "center" }}>
-            <div className="modal-logo" style={{ color: "var(--color-primary)", marginBottom: "1rem" }}>
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto" }}>
-                <path d="M21 15v4a2 2 0 0 1-2-2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-            </div>
-            <h2 className="modal-title" style={{ color: "var(--color-primary)", marginBottom: "1rem" }}>O'rnatish imkoni yo'q</h2>
-            <p className="modal-subtitle" style={{ marginBottom: "2rem" }}>
-              Avtomatik o'rnatish imkoni topilmadi. Iltimos, brauzer menyusidan <strong>'O'rnatish' (Install)</strong> yoki <strong>'Bosh ekranga qo'shish' (Add to Home screen)</strong> ni tanlang.
-            </p>
-            <button 
-              className="modal-button" 
-              style={{ width: "100%", backgroundColor: "var(--color-primary)" }} 
-              onClick={() => setShowInstallAlert(false)}
-            >
-              Tushundim
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
