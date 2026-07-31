@@ -938,7 +938,7 @@ export default function Home() {
       <header className="app-header glass-effect">
         <div className="logo-container">
           <HabarnomaLogo />
-          <h1 className="logo-text">
+          <h1 className="logo-text hidden sm:block">
             Habarnoma<span className="logo-accent">.</span>
           </h1>
         </div>
@@ -948,10 +948,10 @@ export default function Home() {
               {isSelectMode ? (
                 <div className="select-mode-actions" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <button className="clear-chat-btn select-all-btn" onClick={handleSelectAllMessages}>
-                    ✓ Hammasini belgilash
+                    ✓ <span className="hidden sm:inline">Hammasini belgilash</span>
                   </button>
                   <button className="clear-chat-btn delete-selected-btn" onClick={handleDeleteSelectedMessages} disabled={selectedMessageIds.size === 0}>
-                    🗑️ Tanlanganlarni o'chirish ({selectedMessageIds.size})
+                    🗑️ <span className="hidden sm:inline">O'chirish ({selectedMessageIds.size})</span>
                   </button>
                   <button className="clear-chat-btn cancel-select-btn" onClick={handleCancelSelection}>
                     Bekor qilish
@@ -960,10 +960,10 @@ export default function Home() {
               ) : (
                 <div style={{ display: "flex", gap: "8px" }}>
                   <button className="clear-chat-btn" onClick={handleClearChat} title="Butun chatni tozalash">
-                    🧹 Tozalash
+                    🧹 <span className="hidden sm:inline">Tozalash</span>
                   </button>
                   <button className="clear-chat-btn select-delete-toggle-btn" onClick={() => setIsSelectMode(true)} title="Tanlab o'chirish">
-                    ☑ Tanlab o'chirish
+                    ☑ <span className="hidden sm:inline">Tanlab o'chirish</span>
                   </button>
                 </div>
               )}
@@ -973,7 +973,7 @@ export default function Home() {
             <div className="header-actions" style={{ display: "flex", alignItems: "center" }}>
               <div className="user-profile">
                 <span className="user-avatar">{avatar}</span>
-                <span className="user-name">{getDisplayName(username)}</span>
+                <span className="user-name hidden sm:block">{getDisplayName(username)}</span>
                 {isAdminUser(username, adminsList) && <span className="admin-badge">👑</span>}
               </div>
               <button 
